@@ -1,0 +1,39 @@
+name: MATLAB Tests
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+  workflow_dispatch:
+jobs:
+  matlab-test:
+    name: MATLAB Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["R2022a"]
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+    runs-on: ${{matrix.os}}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v1
+        with:
+          release: ${{matrix.version}}
+      - name: Compile MEX file
+        uses: matlab-actions/run-command@v1
+        with:
+          command: compile_bdms_mex
+      - name: Get MEX extension on Linux/macOS
+        if: runner.os != 'Windows'
+        run: echo "MEXEXT=$(mexext)" >> $GITHUB_ENV
+      - name: Get MEX extension on Windows
+        if: runner.os == 'Windows'
+        run: echo "MEXEXT=$(mexext.bat)" >> $env:GITHUB_ENV
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: bdms-mex-${{runner.os}}-${{matrix.version}}
+          path: ./**/*.${{env.MEXEXT}}
+          retention-days: 5
