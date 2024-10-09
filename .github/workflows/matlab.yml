@@ -50,46 +50,48 @@ jobs:
       - name: Build OpenSSL (Unix)
         if: runner.os != 'Windows'
         run: |
-          cd openssl
+          cd deps/openssl
           ./config
           make
           mkdir -p ${{github.workspace}}/lib ${{github.workspace}}/include
           cp libcrypto.a libssl.a ${{github.workspace}}/lib/
-          cp -R include/openssl ${{github.workspace}}/include/
-          cd ..
+          # cp -R include/openssl ${{github.workspace}}/include/
+          cd ../..
 
       - name: Build OpenSSL (Windows)
         if: runner.os == 'Windows'
         run: |
-          cd openssl
+          cd deps/openssl
           perl Configure VC-WIN64A
           nmake
           mkdir -p ${{github.workspace}}/lib ${{github.workspace}}/include
           copy libcrypto_static.lib ${{github.workspace}}/lib
           copy libssl_static.lib ${{github.workspace}}/lib
-          xcopy /E /I include\openssl ${{github.workspace}}/include\openssl
-          cd ..
+          # xcopy /E /I include\openssl ${{github.workspace}}/include\openssl
+          cd ../..
 
       - name: Unzip and Build zlib (Unix)
         if: runner.os != 'Windows'
         run: |
+          cd deps
           unzip zlib1213.zip
           cd zlib-1.2.13
           ./configure
           make
           cp libz.a ${{github.workspace}}/lib/
-          cp zlib.h zconf.h ${{github.workspace}}/include/
-          cd ..
+          # cp zlib.h zconf.h ${{github.workspace}}/include/
+          cd ../..
 
       - name: Unzip and Build zlib (Windows)
         if: runner.os == 'Windows'
         run: |
+          cd deps
           7z x zlib1213.zip
           cd zlib-1.2.13
           nmake -f win32/Makefile.msc
           copy zlib.lib ${{github.workspace}}/lib
-          copy zlib.h zconf.h ${{github.workspace}}/include
-          cd ..
+          # copy zlib.h zconf.h ${{github.workspace}}/include
+          cd ../..
 
       - name: Compile MEX file
         uses: matlab-actions/run-command@v1
