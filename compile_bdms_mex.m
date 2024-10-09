@@ -17,6 +17,6 @@ include_flags = cellfun(@(x) ['-I"' x '"'], include_paths, 'UniformOutput', fals
 source_files = {'bdms_mex.c', 'bdms_wrapper.cpp'};
 
 % Compile the MEX file
-mex('-R2016b', include_flags{:}, '-output', 'bdms_mex', source_files{:});
+mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', source_files{:});
 
 disp('Compilation completed.');
