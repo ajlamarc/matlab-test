@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ["R2022a"]
+        version: ["R2024a"]
         os: ["ubuntu-latest", "macos-13", "windows-latest"]
     runs-on: ${{matrix.os}}
     steps:
