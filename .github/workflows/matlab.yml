@@ -19,7 +19,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
         with:
-          submodules: 'recursive'
+          submodules: "recursive"
           lfs: true
 
       - name: Set up MATLAB
@@ -46,6 +46,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           choco install strawberryperl nasm
+          # add NASM to path, isn't done automatically
+          echo "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build OpenSSL (Unix)
         if: runner.os != 'Windows'
