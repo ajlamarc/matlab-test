@@ -13,8 +13,14 @@ include_paths = {include_dir, ...
 % Create the include flags
 include_flags = cellfun(@(x) ['-I"' x '"'], include_paths, 'UniformOutput', false);
 
+%define library files
+% library_dir = fullfile(current_dir, 'lib');
+% library_files = {fullfile(library_dir, 'libcrypto_static.lib'), ...
+%                  fullfile(library_dir, 'libssl_static.lib'), ...
+%                  fullfile(library_dir, 'zlib.lib')};
+
 % Define source files
-source_files = {'bdms_mex.c', 'bdms_wrapper.cpp'};
+source_files = {'bdms_mex.cpp', 'bdms_wrapper.cpp'};
 
 % Compile the MEX file
 mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', source_files{:});

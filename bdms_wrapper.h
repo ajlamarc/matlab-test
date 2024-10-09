@@ -3,17 +3,8 @@
 
 #include <cstddef>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-    void *createBlueDataManager(const char *apiKey, const char *baseUrl, const char *userAgent);
-    void destroyBlueDataManager(void *bdm);
-    size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int numDataIDs, void *outputBuffer);
-
-#ifdef __cplusplus
-}
-#endif
+void *createBlueDataManager(const char *apiKey, const char *baseUrl, const char *userAgent);
+void destroyBlueDataManager(void *bdm);
+size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int numDataIDs, void *outputBuffer);
 
 #endif // BDMS_WRAPPER_H

@@ -22,17 +22,17 @@ using json = nlohmann::json;
 
 enum VectorType
 {
-    BOOL,
-    UINT8,
-    INT8,
-    UINT16,
-    INT16,
-    UINT32,
-    INT32,
-    UINT64,
-    INT64,
-    FLOAT,
-    DOUBLE
+    BDMS_BOOL,
+    BDMS_UINT8,
+    BDMS_INT8,
+    BDMS_UINT16,
+    BDMS_INT16,
+    BDMS_UINT32,
+    BDMS_INT32,
+    BDMS_UINT64,
+    BDMS_INT64,
+    BDMS_FLOAT,
+    BDMS_DOUBLE
 };
 
 struct GenericVector
@@ -52,7 +52,7 @@ struct GenericVector
         std::vector<double> *double_vec;
     } data;
 
-    GenericVector() : type(BOOL), data{nullptr} {}
+    GenericVector() : type(BDMS_BOOL), data{nullptr} {}
     ~GenericVector()
     {
         clear();
@@ -320,27 +320,27 @@ public:
 };
 
 template <>
-VectorType DataFunctions::getVectorType<bool>() { return BOOL; }
+VectorType DataFunctions::getVectorType<bool>() { return BDMS_BOOL; }
 template <>
-VectorType DataFunctions::getVectorType<uint8_t>() { return UINT8; }
+VectorType DataFunctions::getVectorType<uint8_t>() { return BDMS_UINT8; }
 template <>
-VectorType DataFunctions::getVectorType<int8_t>() { return INT8; }
+VectorType DataFunctions::getVectorType<int8_t>() { return BDMS_INT8; }
 template <>
-VectorType DataFunctions::getVectorType<uint16_t>() { return UINT16; }
+VectorType DataFunctions::getVectorType<uint16_t>() { return BDMS_UINT16; }
 template <>
-VectorType DataFunctions::getVectorType<int16_t>() { return INT16; }
+VectorType DataFunctions::getVectorType<int16_t>() { return BDMS_INT16; }
 template <>
-VectorType DataFunctions::getVectorType<uint32_t>() { return UINT32; }
+VectorType DataFunctions::getVectorType<uint32_t>() { return BDMS_UINT32; }
 template <>
-VectorType DataFunctions::getVectorType<int32_t>() { return INT32; }
+VectorType DataFunctions::getVectorType<int32_t>() { return BDMS_INT32; }
 template <>
-VectorType DataFunctions::getVectorType<uint64_t>() { return UINT64; }
+VectorType DataFunctions::getVectorType<uint64_t>() { return BDMS_UINT64; }
 template <>
-VectorType DataFunctions::getVectorType<int64_t>() { return INT64; }
+VectorType DataFunctions::getVectorType<int64_t>() { return BDMS_INT64; }
 template <>
-VectorType DataFunctions::getVectorType<float>() { return FLOAT; }
+VectorType DataFunctions::getVectorType<float>() { return BDMS_FLOAT; }
 template <>
-VectorType DataFunctions::getVectorType<double>() { return DOUBLE; }
+VectorType DataFunctions::getVectorType<double>() { return BDMS_DOUBLE; }
 
 // Initialize vec for any type of GenericVector
 template <typename T>
@@ -349,27 +349,27 @@ void DataFunctions::assignVector(GenericVector &vec, size_t size)
     vec.type = getVectorType<T>();
     switch (vec.type)
     {
-    case BOOL:
-    case UINT8:
-    case INT8:
+    case BDMS_BOOL:
+    case BDMS_UINT8:
+    case BDMS_INT8:
         vec.data.uint8_vec = new std::vector<uint8_t>(size);
         break;
-    case UINT16:
-    case INT16:
+    case BDMS_UINT16:
+    case BDMS_INT16:
         vec.data.uint16_vec = new std::vector<uint16_t>(size);
         break;
-    case UINT32:
-    case INT32:
+    case BDMS_UINT32:
+    case BDMS_INT32:
         vec.data.uint32_vec = new std::vector<uint32_t>(size);
         break;
-    case UINT64:
-    case INT64:
+    case BDMS_UINT64:
+    case BDMS_INT64:
         vec.data.uint64_vec = new std::vector<uint64_t>(size);
         break;
-    case FLOAT:
+    case BDMS_FLOAT:
         vec.data.float_vec = new std::vector<float>(size);
         break;
-    case DOUBLE:
+    case BDMS_DOUBLE:
         vec.data.double_vec = new std::vector<double>(size);
         break;
     default:
