@@ -14,15 +14,23 @@ include_paths = {include_dir, ...
 include_flags = cellfun(@(x) ['-I"' x '"'], include_paths, 'UniformOutput', false);
 
 %define library files
-% library_dir = fullfile(current_dir, 'lib');
-% library_files = {fullfile(library_dir, 'libcrypto_static.lib'), ...
-%                  fullfile(library_dir, 'libssl_static.lib'), ...
-%                  fullfile(library_dir, 'zlib.lib')};
+library_dir = fullfile(current_dir, 'lib');
+
+% Determine the correct library file names based on the platform
+if ispc % Windows
+    library_files = {fullfile(library_dir, 'libcrypto_static.lib'), ...
+                     fullfile(library_dir, 'libssl_static.lib'), ...
+                     fullfile(library_dir, 'zlib.lib')};
+else % Unix (Linux and macOS)
+    library_files = {fullfile(library_dir, 'libcrypto.a'), ...
+                     fullfile(library_dir, 'libssl.a'), ...
+                     fullfile(library_dir, 'libz.a')};
+end
 
 % Define source files
 source_files = {'bdms_mex.cpp', 'bdms_wrapper.cpp'};
 
 % Compile the MEX file
-mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', source_files{:});
+mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
 
 disp('Compilation completed.');

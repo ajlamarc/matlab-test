@@ -5,6 +5,7 @@ on:
       - "main"
   pull_request:
   workflow_dispatch:
+
 jobs:
   matlab-test:
     name: MATLAB Tests
@@ -17,20 +18,92 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+          lfs: true
+
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
         with:
           release: ${{matrix.version}}
+
+      - name: Install build dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Install build dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install perl
+
+      - name: Set up Visual Studio Command Prompt (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install build dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install strawberryperl nasm
+
+      - name: Build OpenSSL (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd openssl
+          ./config
+          make
+          mkdir -p ${{github.workspace}}/lib ${{github.workspace}}/include
+          cp libcrypto.a libssl.a ${{github.workspace}}/lib/
+          cp -R include/openssl ${{github.workspace}}/include/
+          cd ..
+
+      - name: Build OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd openssl
+          perl Configure VC-WIN64A
+          nmake
+          mkdir -p ${{github.workspace}}/lib ${{github.workspace}}/include
+          copy libcrypto_static.lib ${{github.workspace}}/lib
+          copy libssl_static.lib ${{github.workspace}}/lib
+          xcopy /E /I include\openssl ${{github.workspace}}/include\openssl
+          cd ..
+
+      - name: Unzip and Build zlib (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          unzip zlib1213.zip
+          cd zlib-1.2.13
+          ./configure
+          make
+          cp libz.a ${{github.workspace}}/lib/
+          cp zlib.h zconf.h ${{github.workspace}}/include/
+          cd ..
+
+      - name: Unzip and Build zlib (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          7z x zlib1213.zip
+          cd zlib-1.2.13
+          nmake -f win32/Makefile.msc
+          copy zlib.lib ${{github.workspace}}/lib
+          copy zlib.h zconf.h ${{github.workspace}}/include
+          cd ..
+
       - name: Compile MEX file
         uses: matlab-actions/run-command@v1
         with:
           command: compile_bdms_mex
+
       - name: Get MEX extension on Linux/macOS
         if: runner.os != 'Windows'
         run: echo "MEXEXT=$(mexext)" >> $GITHUB_ENV
+
       - name: Get MEX extension on Windows
         if: runner.os == 'Windows'
         run: echo "MEXEXT=$(mexext.bat)" >> $env:GITHUB_ENV
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
