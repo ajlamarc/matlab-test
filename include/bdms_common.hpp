@@ -74,7 +74,7 @@ std::string PATH_SEPARATOR = "\\";
 
 std::string HOME_DIR = "HOME";
 std::string PATH_SEPARATOR = "/";
-#define MKDIR(dir) mkdir(dir, 0755)
+#define MKDIR(dir) mkdir(dir, 0511)
 #endif
 
 // Type definitions
