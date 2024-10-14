@@ -28,7 +28,7 @@ else % Unix (Linux and macOS)
 end
 
 % Define source files
-source_files = {'bdms_mex.cpp', 'bdms_wrapper.cpp'};
+source_files = {'bdms_mex.cpp', 'bdms_wrapper.hpp'};
 
 % Compile the MEX file
 mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
