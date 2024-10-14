@@ -672,6 +672,8 @@ httplib::Client *BaseBlueDataManager::client()
     _client->set_keep_alive(true);
     _client->set_follow_location(true);
     _client->set_bearer_token_auth(_apiKey);
+    // TODO: verify server certificate
+    _client->enable_server_certificate_verification(false);
     return _client.get();
 }
 
