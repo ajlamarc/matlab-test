@@ -2,20 +2,6 @@
 #define CPPHTTPLIB_ZLIB_SUPPORT
 #define CPPHTTPLIB_READ_TIMEOUT_SECOND 20
 
-#ifdef _WIN32
-#include <direct.h>
-
-std::string HOME_DIR = "USERPROFILE";
-std::string PATH_SEPARATOR = "\\";
-#define MKDIR(dir) _mkdir(dir)
-#else
-#include <unistd.h>
-
-std::string HOME_DIR = "HOME";
-std::string PATH_SEPARATOR = "/";
-#define MKDIR(dir) mkdir(dir, 0755)
-#endif
-
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -48,7 +34,7 @@ mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
 emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----)";
 
-const size_t CERT_BYTES_SIZE = strlen(CERT_STRING);
+const size_t CERT_BYTES_SIZE = strlen(CERT_BYTES);
 
 // TODO: remove
 #include "mex.h"
@@ -76,6 +62,20 @@ using json = nlohmann::json;
 #include <ctime>
 // TODO: remove
 #include <mutex>
+
+#ifdef _WIN32
+#include <direct.h>
+
+std::string HOME_DIR = "USERPROFILE";
+std::string PATH_SEPARATOR = "\\";
+#define MKDIR(dir) _mkdir(dir)
+#else
+#include <unistd.h>
+
+std::string HOME_DIR = "HOME";
+std::string PATH_SEPARATOR = "/";
+#define MKDIR(dir) mkdir(dir, 0755)
+#endif
 
 // Type definitions
 class GenericVectorBase
@@ -666,7 +666,7 @@ void logMessage(const char *message)
 class BDMSConfig
 {
 private:
-    static std::string _getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &default);
+    static std::string _getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &defaultValue);
     static std::string _readBDMSKeyFromFile(const std::string &filePath, const std::string &profile, const std::string &key);
     static std::string _getBDMSEnv(const std::string &key, const std::string &defaultValue = "");
     static std::string _getBDMSConfigDir();
@@ -675,6 +675,24 @@ private:
 
 public:
     static BDMSResolvedConfig getHostTokenProtocolCertificateAgentValues(BDMSProvidedConfig provided);
+};
+
+std::string
+BDMSConfig::_getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &defaultValue)
+{
+    if (!provided.empty())
+    {
+        return provided;
+    }
+    else if (!environ.empty())
+    {
+        return environ;
+    }
+    else if (!profile.empty())
+    {
+        return profile;
+    }
+    return defaultValue;
 }
 
 // read value for key from "config" or "credentials" file based on profile
@@ -784,7 +802,7 @@ std::string BDMSConfig::_getDefaultCertificatePath(const std::string &configDir)
         }
     }
 
-    return cert_path;
+    return certPath;
 }
 
 /* Initialize a BaseBDMSDataManager object with the provided configuration.
