@@ -605,6 +605,10 @@ void initializeLogging()
     {
         logFile.open("bdms_log.txt", std::ios::app);
     }
+    if (!logFile.is_open())
+    {
+        throw std::runtime_error("Failed to open log file");
+    }
 }
 
 void closeLogging()
