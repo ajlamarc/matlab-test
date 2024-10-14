@@ -111,6 +111,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: bdms-mex-${{runner.os}}-${{matrix.version}}
-          path: ./**/*.${{env.MEXEXT}}
+          name: bdms-artifacts-${{runner.os}}-${{matrix.version}}
+          path: |
+            ./**/*.${{env.MEXEXT}}
+            ./lib/*
           retention-days: 5
