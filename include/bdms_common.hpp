@@ -2,6 +2,33 @@
 #define CPPHTTPLIB_ZLIB_SUPPORT
 #define CPPHTTPLIB_READ_TIMEOUT_SECOND 20
 
+// TODO: remove
+#include "mex.h"
+
+#include "httplib.h"
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
+#include <set>
+#include <vector>
+#include <variant>
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <stdexcept>
+#include <cstdint>
+#include <iterator>
+#include <future>
+#include <thread>
+#include <memory>
+#include <sstream>
+#include <utility>
+#include <fstream>
+#include <sys/stat.h>
+#include <ctime>
+// TODO: remove
+#include <mutex>
+
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -35,33 +62,6 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----)";
 
 const size_t CERT_BYTES_SIZE = strlen(CERT_BYTES);
-
-// TODO: remove
-#include "mex.h"
-
-#include "httplib.h"
-#include "nlohmann/json.hpp"
-using json = nlohmann::json;
-
-#include <set>
-#include <vector>
-#include <variant>
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <stdexcept>
-#include <cstdint>
-#include <iterator>
-#include <future>
-#include <thread>
-#include <memory>
-#include <sstream>
-#include <utility>
-#include <fstream>
-#include <sys/stat.h>
-#include <ctime>
-// TODO: remove
-#include <mutex>
 
 #ifdef _WIN32
 #include <direct.h>
