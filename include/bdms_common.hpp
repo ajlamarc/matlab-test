@@ -651,7 +651,7 @@ BaseBlueDataManager::request(const std::string &endpoint, const json &body,
     {
         if (retry > 0)
         {
-            mexPrintf("Debug: Retrying request (attempt %d)\n", retry + 1);
+            mexWarnMsgTxt("Debug: Retrying request (attempt %d)\n", retry + 1);
             std::this_thread::sleep_for(std::chrono::seconds(retry - 1));
         }
         std::shared_ptr<httplib::Result> resPtr;
@@ -671,57 +671,57 @@ BaseBlueDataManager::request(const std::string &endpoint, const json &body,
                 std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
         }
 
-        mexPrintf("Debug: Request method: %s\n", (method == POST ? "POST" : (method == HEAD ? "HEAD" : "GET")));
-        mexPrintf("Debug: Endpoint: %s\n", endpoint.c_str());
+        mexWarnMsgTxt("Debug: Request method: %s\n", (method == POST ? "POST" : (method == HEAD ? "HEAD" : "GET")));
+        mexWarnMsgTxt("Debug: Endpoint: %s\n", endpoint.c_str());
 
         if (resPtr)
         {
-            mexPrintf("Debug: Response received\n");
-            mexPrintf("Debug: Error code: %d\n", static_cast<int>(resPtr->error()));
+            mexWarnMsgTxt("Debug: Response received\n");
+            mexWarnMsgTxt("Debug: Error code: %d\n", static_cast<int>(resPtr->error()));
 
             if (resPtr->error() == httplib::Error::Success)
             {
-                mexPrintf("Debug: Status code: %d\n", (*resPtr)->status);
-                mexPrintf("Debug: Response body size: %zu bytes\n", (*resPtr)->body.size());
+                mexWarnMsgTxt("Debug: Status code: %d\n", (*resPtr)->status);
+                mexWarnMsgTxt("Debug: Response body size: %zu bytes\n", (*resPtr)->body.size());
 
                 if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
                 {
-                    mexPrintf("Debug: Authentication error (status %d)\n", (*resPtr)->status);
+                    mexWarnMsgTxt("Debug: Authentication error (status %d)\n", (*resPtr)->status);
                     return std::make_pair(false, resPtr);
                 }
                 else if ((*resPtr)->status == 200)
                 {
-                    mexPrintf("Debug: Request successful\n");
+                    mexWarnMsgTxt("Debug: Request successful\n");
                     return std::make_pair(true, resPtr);
                 }
                 else if (retryStatusCodes.find((*resPtr)->status) == retryStatusCodes.end())
                 {
-                    mexPrintf("Debug: Non-retryable error\n");
+                    mexWarnMsgTxt("Debug: Non-retryable error\n");
                     return std::make_pair(false, resPtr);
                 }
                 else
                 {
-                    mexPrintf("Debug: Retryable error (status %d)\n", (*resPtr)->status);
+                    mexWarnMsgTxt("Debug: Retryable error (status %d)\n", (*resPtr)->status);
                 }
             }
             else
             {
-                mexPrintf("Debug: HTTP request failed at transport layer\n");
+                mexWarnMsgTxt("Debug: HTTP request failed at transport layer\n");
             }
         }
         else
         {
-            mexPrintf("Debug: No response received\n");
+            mexWarnMsgTxt("Debug: No response received\n");
         }
 
         if (retry == 3)
         {
-            mexPrintf("Debug: Max retries reached\n");
+            mexWarnMsgTxt("Debug: Max retries reached\n");
             return std::make_pair(false, resPtr);
         }
     }
 
-    mexPrintf("Debug: Request failed after all retries\n");
+    mexWarnMsgTxt("Debug: Request failed after all retries\n");
     return std::make_pair(false, nullptr);
 }
 
