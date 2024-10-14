@@ -624,7 +624,7 @@ void closeLogging()
 
 void logMessage(const char *message)
 {
-    std::lock_guard<std::mutex> lock(logMutex);
+    std::lock_guard<std::mutex> lock(logFileMutex);
     if (logFile.is_open())
     {
         time_t now = time(0);
