@@ -1,27 +1,20 @@
-#include "bdms_wrapper.h"
+#include <cstddef>
 #include "bdms_data.hpp"
 #include "mex.h"
 #include <cstring>
 #include <vector>
 #include <sstream>
 
-void *createBlueDataManager(const char *apiKey, const char *baseUrl, const char *userAgent)
+void *createBDMSDataManager(BDMSProvidedConfig provided)
 {
     initializeLogging();
-    std::ostringstream debugMsg;
-    debugMsg << "Debug: Creating BlueDataManager\n"
-             << "Debug: API Key: " << apiKey << "\n"
-             << "Debug: Base URL: " << baseUrl << "\n"
-             << "Debug: User Agent: " << userAgent;
-    logMessage(debugMsg.str().c_str());
-
-    return new BlueDataManager(apiKey, baseUrl, userAgent);
+    return new BDMSDataManager(provided);
 }
 
-void destroyBlueDataManager(void *bdm)
+void destroyBDMSDataManager(void *bdm)
 {
-    logMessage("Debug: Destroying BlueDataManager");
-    delete static_cast<BlueDataManager *>(bdm);
+    logMessage("Debug: Destroying BDMSDataManager");
+    delete static_cast<BDMSDataManager *>(bdm);
     closeLogging();
 }
 
@@ -39,7 +32,7 @@ size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int num
 
     logMessage(debugMsg.str().c_str());
 
-    BlueDataManager *manager = static_cast<BlueDataManager *>(bdm);
+    BDMSDataManager *manager = static_cast<BDMSDataManager *>(bdm);
     std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
 
     return manager->getArray(sessionID, ids, static_cast<char *>(outputBuffer));

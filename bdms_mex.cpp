@@ -1,6 +1,6 @@
 #include "mex.h"
 #include "matrix.h"
-#include "bdms_wrapper.h"
+#include "bdms_wrapper.hpp"
 #include <string.h>
 
 static void *bdm = NULL;
@@ -14,21 +14,32 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     if (strcmp(cmd, "init") == 0)
     {
-        if (nrhs != 4)
-            mexErrMsgTxt("init requires 3 additional arguments");
+        if (nrhs != 6)
+            mexErrMsgTxt("init requires 5 additional arguments");
 
-        char apiKey[256], baseUrl[256], userAgent[256];
+        // host, apiKey, protocol, certificatePath, userAgent
+
+        char apiKey[256], host[256], protocol[256], certificatePath[256], userAgent[256];
         mxGetString(prhs[1], apiKey, sizeof(apiKey));
-        mxGetString(prhs[2], baseUrl, sizeof(baseUrl));
-        mxGetString(prhs[3], userAgent, sizeof(userAgent));
+        mxGetString(prhs[2], host, sizeof(host));
+        mxGetString(prhs[3], protocol, sizeof(protocol));
+        mxGetString(prhs[4], certificatePath, sizeof(certificatePath));
+        mxGetString(prhs[5], userAgent, sizeof(userAgent));
 
-        bdm = createBlueDataManager(apiKey, baseUrl, userAgent);
+        BDMSProvidedConfig provided;
+        provided.apiKey = std::string(apiKey);
+        provided.host = std::string(host);
+        provided.protocol = std::string(protocol);
+        provided.certificatePath = std::string(certificatePath);
+        provided.userAgent = std::string(userAgent);
+
+        bdm = createBDMSDataManager(provided);
     }
     else if (strcmp(cmd, "cleanup") == 0)
     {
         if (bdm != NULL)
         {
-            destroyBlueDataManager(bdm);
+            destroyBDMSDataManager(bdm);
             bdm = NULL;
         }
     }
@@ -38,7 +49,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgTxt("getArray requires 3 additional arguments");
 
         if (bdm == NULL)
-            mexErrMsgTxt("BlueDataManager not initialized");
+            mexErrMsgTxt("BDMSDataManager not initialized");
 
         char sessionID[256];
         mxGetString(prhs[1], sessionID, sizeof(sessionID));

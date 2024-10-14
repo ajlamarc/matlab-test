@@ -1,15 +1,15 @@
 #include "bdms_common.hpp"
 
-class BlueDataManager : public BaseBlueDataManager
+class BDMSDataManager : public BaseBDMSDataManager
 {
 public:
     size_t getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer);
 
-    BlueDataManager(std::string apiKey, std::string baseUrl, std::string userAgent)
-        : BaseBlueDataManager(apiKey, baseUrl, userAgent) {}
+    BDMSDataManager(std::string apiKey, std::string baseUrl, std::string userAgent)
+        : BaseBDMSDataManager(apiKey, baseUrl, userAgent) {}
 };
 
-size_t BlueDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer)
+size_t BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer)
 {
     std::ostringstream ss;
     ss << "Debug: Entering getArray function";
