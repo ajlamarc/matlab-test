@@ -3,32 +3,39 @@
 #include "mex.h"
 #include <cstring>
 #include <vector>
+#include <sstream>
 
 void *createBlueDataManager(const char *apiKey, const char *baseUrl, const char *userAgent)
 {
-    mexWarnMsgTxt("Debug: Creating BlueDataManager\n");
-    mexWarnMsgTxt("Debug: API Key: %s\n", apiKey);
-    mexWarnMsgTxt("Debug: Base URL: %s\n", baseUrl);
-    mexWarnMsgTxt("Debug: User Agent: %s\n", userAgent);
+    std::ostringstream debugMsg;
+    debugMsg << "Debug: Creating BlueDataManager\n"
+             << "Debug: API Key: " << apiKey << "\n"
+             << "Debug: Base URL: " << baseUrl << "\n"
+             << "Debug: User Agent: " << userAgent;
+    mexWarnMsgTxt(debugMsg.str().c_str());
 
     return new BlueDataManager(apiKey, baseUrl, userAgent);
 }
 
 void destroyBlueDataManager(void *bdm)
 {
-    mexWarnMsgTxt("Debug: Destroying BlueDataManager\n");
+    mexWarnMsgTxt("Debug: Destroying BlueDataManager");
     delete static_cast<BlueDataManager *>(bdm);
 }
 
 size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int numDataIDs, void *outputBuffer)
 {
-    mexWarnMsgTxt("Debug: Calling getArrayWrapper\n");
-    mexWarnMsgTxt("Debug: Session ID: %s\n", sessionID);
+    std::ostringstream debugMsg;
+    debugMsg << "Debug: Calling getArrayWrapper\n"
+             << "Debug: Session ID: " << sessionID << "\n"
+             << "Debug: Number of Data IDs: " << numDataIDs;
+
     if (numDataIDs > 0)
     {
-        mexWarnMsgTxt("Debug: First Data ID: %s\n", dataIDs[0]);
+        debugMsg << "\nDebug: First Data ID: " << dataIDs[0];
     }
-    mexWarnMsgTxt("Debug: Number of Data IDs: %d\n", numDataIDs);
+
+    mexWarnMsgTxt(debugMsg.str().c_str());
 
     BlueDataManager *manager = static_cast<BlueDataManager *>(bdm);
     std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
