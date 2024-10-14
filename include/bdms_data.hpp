@@ -12,9 +12,17 @@ public:
 size_t
 BlueDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer)
 {
-    logMessage("Debug: Entering getArray function");
-    logMessage("Debug: Session ID: " + sessionID);
-    logMessage("Debug: Number of data IDs: " + std::to_string(dataIDs.size()));
+    std::ostringstream ss;
+    ss << "Debug: Entering getArray function";
+    logMessage(ss.str().c_str());
+
+    ss.str("");
+    ss << "Debug: Session ID: " << sessionID;
+    logMessage(ss.str().c_str());
+
+    ss.str("");
+    ss << "Debug: Number of data IDs: " << dataIDs.size();
+    logMessage(ss.str().c_str());
 
     std::vector<GenericVector> chunks(dataIDs.size());
     auto dataFutures = getDataArraysAsync(sessionID, dataIDs);
@@ -24,7 +32,10 @@ BlueDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &
     size_t totalSize = 0;
     for (size_t i = 0; i < dataFutures.size(); ++i)
     {
-        logMessage("Debug: Processing future " + std::to_string(i));
+        ss.str("");
+        ss << "Debug: Processing future " << i;
+        logMessage(ss.str().c_str());
+
         GenericVector chunk = dataFutures[i].get();
 
         std::string chunkTypeStr;
@@ -78,14 +89,22 @@ BlueDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &
             throw std::runtime_error("Unexpected vector type in getArray");
         }
 
-        logMessage("Debug: Chunk type: " + chunkTypeStr + ", Size: " + std::to_string(chunkSize) + " bytes");
-        logMessage("Debug: Current total size: " + std::to_string(totalSize) + " bytes");
+        ss.str("");
+        ss << "Debug: Chunk type: " << chunkTypeStr << ", Size: " << chunkSize << " bytes";
+        logMessage(ss.str().c_str());
+
+        ss.str("");
+        ss << "Debug: Current total size: " << totalSize << " bytes";
+        logMessage(ss.str().c_str());
+
         logMessage("Debug: Copying chunk to output buffer");
 
         std::memcpy(outputBuffer + totalSize, chunk.data.uint8_vec->data(), chunkSize);
         totalSize += chunkSize;
 
-        logMessage("Debug: Chunk copied, new total size: " + std::to_string(totalSize) + " bytes");
+        ss.str("");
+        ss << "Debug: Chunk copied, new total size: " << totalSize << " bytes";
+        logMessage(ss.str().c_str());
 
         // free chunk memory
         chunk.clear();
@@ -93,7 +112,11 @@ BlueDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &
     }
 
     logMessage("Debug: All chunks processed");
-    logMessage("Debug: Final total size: " + std::to_string(totalSize) + " bytes");
+
+    ss.str("");
+    ss << "Debug: Final total size: " << totalSize << " bytes";
+    logMessage(ss.str().c_str());
+
     logMessage("Debug: Exiting getArray function");
 
     return totalSize;
