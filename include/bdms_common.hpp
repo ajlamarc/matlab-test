@@ -68,7 +68,7 @@ struct GenericVector
     template <typename T>
     void assign(size_t size)
     {
-        data = std::make_unique<GenericVectorImpl<T>>(size);
+        data = httplib::detail::make_unique<GenericVectorImpl<T>>(size);
     }
 
     char *buffer()
@@ -103,17 +103,6 @@ enum HTTPMethod
     HEAD,
     POST
 };
-
-// see https://stackoverflow.com/a/64054899
-#if __cplusplus < 201402L
-template <class T, class... Args>
-std::unique_ptr<T> make_unique(Args &&...args)
-{
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-#else
-using std::make_unique;
-#endif
 
 class DataStats
 {
@@ -615,7 +604,7 @@ public:
 httplib::Client *BaseBlueDataManager::client()
 {
     static thread_local std::unique_ptr<httplib::Client> _client =
-        make_unique<httplib::Client>(_baseUrl);
+        httplib::detail::make_unique<httplib::Client>(_baseUrl);
     // default connection timeout is 300 seconds, which is sufficient
     _client->set_read_timeout(std::chrono::seconds(300));
     _client->set_write_timeout(std::chrono::seconds(300));
