@@ -2,6 +2,9 @@
 #define CPPHTTPLIB_ZLIB_SUPPORT
 #define CPPHTTPLIB_READ_TIMEOUT_SECOND 20
 
+// TODO: remove
+#include "mex.h"
+
 #include "httplib.h"
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
@@ -648,7 +651,7 @@ BaseBlueDataManager::request(const std::string &endpoint, const json &body,
     {
         if (retry > 0)
         {
-            // Back-off delay
+            mexPrintf("Debug: Retrying request (attempt %d)\n", retry + 1);
             std::this_thread::sleep_for(std::chrono::seconds(retry - 1));
         }
         std::shared_ptr<httplib::Result> resPtr;
@@ -667,68 +670,58 @@ BaseBlueDataManager::request(const std::string &endpoint, const json &body,
             resPtr =
                 std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
         }
-        if (resPtr && resPtr->error() == httplib::Error::Success)
+
+        mexPrintf("Debug: Request method: %s\n", (method == POST ? "POST" : (method == HEAD ? "HEAD" : "GET")));
+        mexPrintf("Debug: Endpoint: %s\n", endpoint.c_str());
+
+        if (resPtr)
         {
-            if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
+            mexPrintf("Debug: Response received\n");
+            mexPrintf("Debug: Error code: %d\n", static_cast<int>(resPtr->error()));
+
+            if (resPtr->error() == httplib::Error::Success)
             {
-                // Forbidden (invalid API key)
-                // TODO: catch error and raise back to MATLAB
-                // auto header = std::to_string((*resPtr)->status) + " HTTP error";
-                // MessageBox(NULL,
-                //            TEXT("Your request was rejected by BDMS. Please "
-                //                 "verify that your API key is up-to-date, and "
-                //                 "you have access to the requested campaign.  "
-                //                 "To set a new API key, at the top of WinPlot "
-                //                 "click Data -> BlueAcc -> Reset API key."),
-                //            TEXT(header.c_str()), MB_ICONERROR);
-                return std::make_pair(false, resPtr);
+                mexPrintf("Debug: Status code: %d\n", (*resPtr)->status);
+                mexPrintf("Debug: Response body size: %zu bytes\n", (*resPtr)->body.size());
+
+                if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
+                {
+                    mexPrintf("Debug: Authentication error (status %d)\n", (*resPtr)->status);
+                    return std::make_pair(false, resPtr);
+                }
+                else if ((*resPtr)->status == 200)
+                {
+                    mexPrintf("Debug: Request successful\n");
+                    return std::make_pair(true, resPtr);
+                }
+                else if (retryStatusCodes.find((*resPtr)->status) == retryStatusCodes.end())
+                {
+                    mexPrintf("Debug: Non-retryable error\n");
+                    return std::make_pair(false, resPtr);
+                }
+                else
+                {
+                    mexPrintf("Debug: Retryable error (status %d)\n", (*resPtr)->status);
+                }
             }
-            // If response is successful, return the result
-            else if ((*resPtr)->status == 200)
+            else
             {
-                return std::make_pair(true, resPtr);
-            }
-            else if (retryStatusCodes.find((*resPtr)->status) ==
-                     retryStatusCodes.end())
-            {
-                // TODO: catch error and raise back to MATLAB
-                // const json jsonResponse = json::parse((*resPtr)->body);
-                // auto modalBody = jsonResponse.dump(2);
-                // MessageBox(NULL, TEXT(modalBody.c_str()),
-                //            TEXT("BDMS Request failure"), MB_ICONERROR);
-                // If response is not successful but not in retry
-                // conditions, break the loop and return
-                return std::make_pair(false, resPtr);
+                mexPrintf("Debug: HTTP request failed at transport layer\n");
             }
         }
-        // failed 3 retries
+        else
+        {
+            mexPrintf("Debug: No response received\n");
+        }
+
         if (retry == 3)
         {
-            // if (resPtr->error() != httplib::Error::Success) {
-            //     // TODO: catch error and raise back to MATLAB
-            //     auto modalBody =
-            //         "HTTP request failed at transport layer with error code: " +
-            //         httplibErrorToString(resPtr->error()) +
-            //         " for endpoint: " + endpoint + "and body: " + body.dump(2) +
-            //         "Please contact the BDMS team.";
-            //     MessageBox(NULL, TEXT(modalBody.c_str()),
-            //                TEXT("HTTP Request Failure"), MB_ICONERROR);
-            // } else {
-            //     // TODO: catch error and raise back to MATLAB
-            //     /* Assume that a 429 response is a fast writes rate limit,
-            //     in which case we do not want to disturb the user and block
-            //     execution with a popup. */
-            //     if ((*resPtr)->status != 429) {
-            //         const json jsonResponse = json::parse((*resPtr)->body);
-            //         auto modalBody = jsonResponse.dump(2);
-            //         MessageBox(NULL, TEXT(modalBody.c_str()),
-            //                    TEXT("BDMS Request Max Retries"), MB_ICONERROR);
-            //     }
-            // }
+            mexPrintf("Debug: Max retries reached\n");
             return std::make_pair(false, resPtr);
         }
     }
 
+    mexPrintf("Debug: Request failed after all retries\n");
     return std::make_pair(false, nullptr);
 }
 
