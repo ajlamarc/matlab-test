@@ -1,5 +1,6 @@
 #include "bdms_wrapper.h"
 #include "bdms_data.hpp"
+#include "mex.h"
 #include <cstring>
 #include <vector>
 

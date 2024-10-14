@@ -1,4 +1,4 @@
-// #include "mex.h"
+#include "mex.h"
 #include "matrix.h"
 #include "bdms_wrapper.h"
 #include <string.h>
