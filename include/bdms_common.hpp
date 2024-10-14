@@ -25,6 +25,8 @@ using json = nlohmann::json;
 #include <utility>
 #include <fstream>
 #include <ctime>
+// TODO: remove
+#include <mutex>
 
 enum VectorType
 {
@@ -598,6 +600,7 @@ void DataFunctions::getConstantValues(const BDMSDataID &identifier,
 
 // Global log file stream
 std::ofstream logFile;
+std::mutex logFileMutex;
 
 void initializeLogging()
 {
@@ -621,6 +624,7 @@ void closeLogging()
 
 void logMessage(const char *message)
 {
+    std::lock_guard<std::mutex> lock(logMutex);
     if (logFile.is_open())
     {
         time_t now = time(0);
