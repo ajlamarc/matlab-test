@@ -7,20 +7,22 @@
 
 void *createBlueDataManager(const char *apiKey, const char *baseUrl, const char *userAgent)
 {
+    initializeLogging();
     std::ostringstream debugMsg;
     debugMsg << "Debug: Creating BlueDataManager\n"
              << "Debug: API Key: " << apiKey << "\n"
              << "Debug: Base URL: " << baseUrl << "\n"
              << "Debug: User Agent: " << userAgent;
-    mexWarnMsgTxt(debugMsg.str().c_str());
+    logMessage(debugMsg.str().c_str());
 
     return new BlueDataManager(apiKey, baseUrl, userAgent);
 }
 
 void destroyBlueDataManager(void *bdm)
 {
-    mexWarnMsgTxt("Debug: Destroying BlueDataManager");
+    logMessage("Debug: Destroying BlueDataManager");
     delete static_cast<BlueDataManager *>(bdm);
+    closeLogging();
 }
 
 size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int numDataIDs, void *outputBuffer)
@@ -35,7 +37,7 @@ size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int num
         debugMsg << "\nDebug: First Data ID: " << dataIDs[0];
     }
 
-    mexWarnMsgTxt(debugMsg.str().c_str());
+    logMessage(debugMsg.str().c_str());
 
     BlueDataManager *manager = static_cast<BlueDataManager *>(bdm);
     std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
