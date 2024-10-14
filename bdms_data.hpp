@@ -3,10 +3,9 @@
 class BDMSDataManager : public BaseBDMSDataManager
 {
 public:
-    size_t getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer);
+    using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
-    BDMSDataManager(std::string apiKey, std::string baseUrl, std::string userAgent)
-        : BaseBDMSDataManager(apiKey, baseUrl, userAgent) {}
+    size_t getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer);
 };
 
 size_t BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs, char *outputBuffer)
