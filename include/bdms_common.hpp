@@ -28,48 +28,62 @@ using json = nlohmann::json;
 // TODO: remove
 #include <mutex>
 
-enum VectorType
+class GenericVectorBase
 {
-    BDMS_BOOL,
-    BDMS_UINT8,
-    BDMS_INT8,
-    BDMS_UINT16,
-    BDMS_INT16,
-    BDMS_UINT32,
-    BDMS_INT32,
-    BDMS_UINT64,
-    BDMS_INT64,
-    BDMS_FLOAT,
-    BDMS_DOUBLE
+public:
+    virtual ~GenericVectorBase() = default;
+    virtual char *data() = 0;
+    virtual size_t size() = 0;
+    virtual size_t byteSize() = 0;
+};
+
+template <typename T>
+class GenericVectorImpl : public GenericVectorBase
+{
+public:
+    std::vector<T> vec;
+
+    GenericVectorImpl(size_t size) : vec(size) {}
+
+    char *data() override
+    {
+        return reinterpret_cast<char *>(vec.data());
+    }
+
+    size_t size() override
+    {
+        return vec.size();
+    }
+
+    size_t byteSize() override
+    {
+        return vec.size() * sizeof(T);
+    }
 };
 
 struct GenericVector
 {
-    VectorType type;
-    union
-    {
-        std::vector<uint8_t> *uint8_vec;
-        std::vector<int8_t> *int8_vec;
-        std::vector<uint16_t> *uint16_vec;
-        std::vector<int16_t> *int16_vec;
-        std::vector<uint32_t> *uint32_vec;
-        std::vector<int32_t> *int32_vec;
-        std::vector<uint64_t> *uint64_vec;
-        std::vector<int64_t> *int64_vec;
-        std::vector<float> *float_vec;
-        std::vector<double> *double_vec;
-    } data;
+    std::unique_ptr<GenericVectorBase> data;
 
-    GenericVector() : type(BDMS_BOOL), data{nullptr} {}
-    ~GenericVector()
+    template <typename T>
+    void assign(size_t size)
     {
-        clear();
+        data = std::make_unique<GenericVectorImpl<T>>(size);
     }
 
-    void clear()
+    char *buffer()
     {
-        delete data.uint8_vec;
-        data.uint8_vec = nullptr;
+        return data ? data->data() : nullptr;
+    }
+
+    size_t size()
+    {
+        return data ? data->size() : 0;
+    }
+
+    size_t byteSize()
+    {
+        return data ? data->byteSize() : 0;
     }
 };
 
@@ -330,79 +344,15 @@ public:
     static void fillBufferWithSequence(T *buffer, T min_value, T max_value,
                                        T step_value);
     template <typename T>
-    static VectorType getVectorType();
-    template <typename T>
-    static void assignVector(GenericVector &vec, size_t size);
-    template <typename T>
     static void assignBufferAndVector(GenericVector &vec, char *&buffer,
                                       size_t size);
 };
 
-template <>
-VectorType DataFunctions::getVectorType<bool>() { return BDMS_BOOL; }
-template <>
-VectorType DataFunctions::getVectorType<uint8_t>() { return BDMS_UINT8; }
-template <>
-VectorType DataFunctions::getVectorType<int8_t>() { return BDMS_INT8; }
-template <>
-VectorType DataFunctions::getVectorType<uint16_t>() { return BDMS_UINT16; }
-template <>
-VectorType DataFunctions::getVectorType<int16_t>() { return BDMS_INT16; }
-template <>
-VectorType DataFunctions::getVectorType<uint32_t>() { return BDMS_UINT32; }
-template <>
-VectorType DataFunctions::getVectorType<int32_t>() { return BDMS_INT32; }
-template <>
-VectorType DataFunctions::getVectorType<uint64_t>() { return BDMS_UINT64; }
-template <>
-VectorType DataFunctions::getVectorType<int64_t>() { return BDMS_INT64; }
-template <>
-VectorType DataFunctions::getVectorType<float>() { return BDMS_FLOAT; }
-template <>
-VectorType DataFunctions::getVectorType<double>() { return BDMS_DOUBLE; }
-
-// Initialize vec for any type of GenericVector
 template <typename T>
-void DataFunctions::assignVector(GenericVector &vec, size_t size)
+void DataFunctions::assignBufferAndVector(GenericVector &vec, char *&buffer, size_t size)
 {
-    vec.type = getVectorType<T>();
-    switch (vec.type)
-    {
-    case BDMS_BOOL:
-    case BDMS_UINT8:
-    case BDMS_INT8:
-        vec.data.uint8_vec = new std::vector<uint8_t>(size);
-        break;
-    case BDMS_UINT16:
-    case BDMS_INT16:
-        vec.data.uint16_vec = new std::vector<uint16_t>(size);
-        break;
-    case BDMS_UINT32:
-    case BDMS_INT32:
-        vec.data.uint32_vec = new std::vector<uint32_t>(size);
-        break;
-    case BDMS_UINT64:
-    case BDMS_INT64:
-        vec.data.uint64_vec = new std::vector<uint64_t>(size);
-        break;
-    case BDMS_FLOAT:
-        vec.data.float_vec = new std::vector<float>(size);
-        break;
-    case BDMS_DOUBLE:
-        vec.data.double_vec = new std::vector<double>(size);
-        break;
-    default:
-        throw std::runtime_error("Unexpected vector type in assignVector");
-    }
-}
-
-// Initalize vec and buffer for any type of GenericVector
-template <typename T>
-void DataFunctions::assignBufferAndVector(GenericVector &vec, char *&buffer,
-                                          size_t size)
-{
-    assignVector<T>(vec, size);
-    buffer = reinterpret_cast<char *>(vec.data.uint8_vec->data());
+    vec.assign<T>(size);
+    buffer = vec.buffer();
 }
 
 template <typename T>
