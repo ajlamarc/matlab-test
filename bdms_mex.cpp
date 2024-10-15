@@ -91,7 +91,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
         // Get the data and copy directly into the mxArray
-        size_t dataSize = bdms_instance->getArray(sessionID, ids, mxGetData(plhs[0]));
+        size_t dataSize = bdms_instance->getArray(sessionID, ids, static_cast<char *>(mxGetData(plhs[0])));
 
         // Verify that the actual data size matches the expected size
         if (dataSize != expectedSize)
