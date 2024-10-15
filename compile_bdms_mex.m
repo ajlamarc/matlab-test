@@ -15,7 +15,17 @@ include_paths = {current_dir, ...
 include_flags = cellfun(@(x) ['-I"' x '"'], include_paths, 'UniformOutput', false);
 
 %define library files
-library_dir = fullfile(current_dir, 'lib');
+base_library_dir = fullfile(current_dir, 'lib');
+
+if ismac
+    library_dir = fullfile(base_library_dir, 'mac');
+elseif isunix
+    library_dir = fullfile(base_library_dir, 'linux');
+elseif ispc
+    library_dir = fullfile(base_library_dir, 'win');
+else
+    error('Platform not supported')
+end
 
 % Determine the correct library file names based on the platform
 if ispc % Windows
