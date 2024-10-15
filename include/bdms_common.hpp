@@ -850,12 +850,13 @@ BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(BDMSPr
 {
     BDMSResolvedConfig resolved;
 
-    BDMSProfileConfig profile = BDMSConfig::_getProfileHostTokenProtocolCertificateValues(provided.profile);
+    // TODO: enable this code when works as expected (add tests)
+    // BDMSProfileConfig profile = BDMSConfig::_getProfileHostTokenProtocolCertificateValues(provided.profile);
 
-    std::string environHost = BDMSConfig::_getBDMSEnv("API_HOST");
-    std::string environProtocol = BDMSConfig::_getBDMSEnv("API_PROTOCOL");
-    std::string environApiKey = BDMSConfig::_getBDMSEnv("SECRET_API_KEY");
-    std::string environCertificatePath = BDMSConfig::_getBDMSEnv("CERTIFICATE_PATH");
+    // std::string environHost = BDMSConfig::_getBDMSEnv("API_HOST");
+    // std::string environProtocol = BDMSConfig::_getBDMSEnv("API_PROTOCOL");
+    // std::string environApiKey = BDMSConfig::_getBDMSEnv("SECRET_API_KEY");
+    // std::string environCertificatePath = BDMSConfig::_getBDMSEnv("CERTIFICATE_PATH");
 
     std::string defaultHost = "bdms2.blueorigin.com";
     std::string defaultProtocol = "https";
@@ -866,12 +867,16 @@ BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(BDMSPr
     std::string host, protocol;
 
     // evaluate configuration values in precedence order described in docstring
-    host = _getBDMSConfigValueByPriority(provided.host, environHost, profile.host, defaultHost);
-    protocol = _getBDMSConfigValueByPriority(provided.protocol, environProtocol, profile.protocol, defaultProtocol);
+    // host = _getBDMSConfigValueByPriority(provided.host, environHost, profile.host, defaultHost);
+    // protocol = _getBDMSConfigValueByPriority(provided.protocol, environProtocol, profile.protocol, defaultProtocol);
+    host = provided.host;
+    protocol = provided.protocol;
 
     // Set class variables based on config
-    resolved.apiKey = _getBDMSConfigValueByPriority(provided.apiKey, environApiKey, profile.apiKey, defaultApiKey);
-    resolved.certificatePath = _getBDMSConfigValueByPriority(provided.certificatePath, environCertificatePath, profile.certificatePath, defaultCertificatePath);
+    // resolved.apiKey = _getBDMSConfigValueByPriority(provided.apiKey, environApiKey, profile.apiKey, defaultApiKey);
+    // resolved.certificatePath = _getBDMSConfigValueByPriority(provided.certificatePath, environCertificatePath, profile.certificatePath, defaultCertificatePath);
+    resolved.apiKey = provided.apiKey;
+    resolved.certificatePath = provided.certificatePath;
     resolved.userAgent = !provided.userAgent.empty() ? provided.userAgent : defaultUserAgent;
     resolved.baseUrl = protocol + "://" + host + "/v5/";
 
