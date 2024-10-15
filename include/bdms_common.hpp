@@ -25,8 +25,6 @@ using json = nlohmann::json;
 #include <fstream>
 #include <sys/stat.h>
 #include <ctime>
-// TODO: remove
-#include <mutex>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -627,7 +625,6 @@ void BDMSDataFunctions::getConstantValues(const BDMSDataID &identifier,
 
 // Global log file stream
 std::ofstream logFile;
-std::mutex logFileMutex;
 
 void initializeLogging()
 {
@@ -651,7 +648,6 @@ void closeLogging()
 
 void logMessage(const char *message)
 {
-    std::lock_guard<std::mutex> lock(logFileMutex);
     if (logFile.is_open())
     {
         time_t now = time(0);
