@@ -1,23 +1,26 @@
 #include "mex.h"
 #include "matrix.h"
-#include "bdms_wrapper.hpp"
+#include "class_handle.hpp"
+#include "bdms_data.hpp"
 #include <string.h>
-
-static void *bdm = NULL;
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     char cmd[64];
 
     if (nrhs < 1 || mxGetString(prhs[0], cmd, sizeof(cmd)))
-        mexErrMsgTxt("First input should be a command string");
+        mexErrMsgTxt("First input should be a command string less than 64 characters long");
 
-    if (strcmp(cmd, "init") == 0)
+    if (!strcmp("new", cmd))
     {
-        if (nrhs != 6)
-            mexErrMsgTxt("init requires 5 additional arguments");
+        // Check parameters
+        if (nlhs != 1)
+            mexErrMsgTxt("New: One output expected.");
 
-        // host, apiKey, protocol, certificatePath, userAgent
+        if (nrhs != 6)
+            mexErrMsgTxt("New: Requires 5 additional arguments.");
+
+        initializeLogging();
 
         char apiKey[256], host[256], protocol[256], certificatePath[256], userAgent[256];
         mxGetString(prhs[1], apiKey, sizeof(apiKey));
@@ -33,23 +36,37 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         provided.certificatePath = std::string(certificatePath);
         provided.userAgent = std::string(userAgent);
 
-        bdm = createBDMSDataManager(provided);
+        // Return a handle to a new C++ instance
+        plhs[0] = convertPtr2Mat<BDMSDataManager>(new BDMSDataManager(provided));
+        return;
     }
-    else if (strcmp(cmd, "cleanup") == 0)
-    {
-        if (bdm != NULL)
-        {
-            destroyBDMSDataManager(bdm);
-            bdm = NULL;
-        }
-    }
-    else if (strcmp(cmd, "getArray") == 0)
-    {
-        if (nrhs != 4)
-            mexErrMsgTxt("getArray requires 3 additional arguments");
 
-        if (bdm == NULL)
-            mexErrMsgTxt("BDMSDataManager not initialized");
+    // Check there is a second input, which should be the class instance handle
+    if (nrhs < 2)
+        mexErrMsgTxt("Second input should be a class instance handle.");
+
+    // Delete
+    if (!strcmp("delete", cmd))
+    {
+        // Destroy the C++ object
+        destroyObject<BDMSDataManager>(prhs[1]);
+        // Warn if other commands were ignored
+        if (nlhs != 0 || nrhs != 2)
+            mexWarnMsgTxt("Delete: Unexpected arguments ignored.");
+
+        closeLogging();
+        return;
+    }
+
+    // Get the class instance pointer from the second input
+    BDMSDataManager *bdms_instance = convertMat2Ptr<BDMSDataManager>(prhs[1]);
+
+    // Call the various class methods
+    if (!strcmp("getArray", cmd))
+    {
+        // Check parameters
+        if (nlhs != 1 || nrhs != 4)
+            mexErrMsgTxt("getArray: Unexpected arguments.");
 
         char sessionID[256];
         mxGetString(prhs[1], sessionID, sizeof(sessionID));
@@ -72,23 +89,21 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mwSize dims[2] = {expectedSize, 1};
         plhs[0] = mxCreateNumericArray(2, dims, mxUINT8_CLASS, mxREAL);
 
+        std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
         // Get the data and copy directly into the mxArray
-        size_t dataSize = getArrayWrapper(bdm, sessionID, dataIDs, numDataIDs, mxGetData(plhs[0]));
+        size_t dataSize = bdms_instance->getArray(sessionID, ids, mxGetData(plhs[0]));
 
         // Verify that the actual data size matches the expected size
         if (dataSize != expectedSize)
-        {
             mexErrMsgTxt("Actual data size does not match expected size");
-        }
 
         for (int i = 0; i < numDataIDs; i++)
         {
             mxFree(dataIDs[i]);
         }
         mxFree(dataIDs);
+        return;
     }
-    else
-    {
-        mexErrMsgTxt("Unknown command");
-    }
+
+    mexErrMsgTxt("Command not recognized.");
 }
