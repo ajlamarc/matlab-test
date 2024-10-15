@@ -55,10 +55,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mxGetString(prhs[1], sessionID, sizeof(sessionID));
 
         const mxArray *cellArray = prhs[2];
-        int numDataIDs = mxGetNumberOfElements(cellArray);
+        size_t numDataIDs = mxGetNumberOfElements(cellArray);
         char **dataIDs = (char **)mxCalloc(numDataIDs, sizeof(char *));
 
-        for (int i = 0; i < numDataIDs; i++)
+        for (size_t i = 0; i < numDataIDs; i++)
         {
             mxArray *cellElement = mxGetCell(cellArray, i);
             char *str = mxArrayToString(cellElement);

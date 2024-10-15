@@ -18,7 +18,7 @@ void destroyBDMSDataManager(void *bdm)
     closeLogging();
 }
 
-size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, int numDataIDs, void *outputBuffer)
+size_t getArrayWrapper(void *bdm, const char *sessionID, char **dataIDs, size_t numDataIDs, void *outputBuffer)
 {
     std::ostringstream debugMsg;
     debugMsg << "Debug: Calling getArrayWrapper\n"

@@ -11,7 +11,6 @@ using json = nlohmann::json;
 
 #include <set>
 #include <vector>
-#include <variant>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -210,8 +209,8 @@ public:
     static T littleEndianHexToDecimal(std::string &littleEndianHex);
     const std::string getBDMSDataType() const;
     const size_t getDataCount() const;
-    const int getDimensionality() const;
-    const int getTotalValueCount() const;
+    const size_t getDimensionality() const;
+    const size_t getTotalValueCount() const;
     template <typename T>
     const T getMinValue() const;
     template <typename T>
@@ -344,9 +343,9 @@ const std::string DataStats::getBDMSDataType() const
 
 const size_t DataStats::getDataCount() const { return this->data_count; }
 
-const int DataStats::getTotalValueCount() const
+const size_t DataStats::getTotalValueCount() const
 {
-    const int dimensionality = this->getDimensionality();
+    size_t dimensionality = this->getDimensionality();
     if (dimensionality == -1)
         return -1;
     return this->data_count * dimensionality;
@@ -355,7 +354,7 @@ const int DataStats::getTotalValueCount() const
 /* Returns -1 if data is 3-dimensional or greater, otherwise the single
 dimensionality value.  1 represents 1-dimensional, any other is two-dimensional.
 */
-const int DataStats::getDimensionality() const
+const size_t DataStats::getDimensionality() const
 {
     size_t pos = this->data_type.find(',');
     if (pos != std::string::npos)
@@ -366,7 +365,7 @@ const int DataStats::getDimensionality() const
         size_t pos2 = dimensionality.find(',');
         if (pos2 != std::string::npos)
             return -1;
-        return std::stoi(dimensionality);
+        return (size_t)std::stoi(dimensionality);
     }
     // auto modalBody =
     //     "Failed to parse dimensionality of the following data identifier: " +
@@ -666,7 +665,7 @@ void logMessage(const char *message)
 class BDMSConfig
 {
 private:
-    static std::string _getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &defaultValue);
+    static std::string _getBDMSConfigValueByPriority(const std::string &provided, const std::string &environValue, const std::string &profile, const std::string &defaultValue);
     static std::string _readBDMSKeyFromFile(const std::string &filePath, const std::string &profile, const std::string &key);
     static std::string _getBDMSEnv(const std::string &key, const std::string &defaultValue = "");
     static std::string _getBDMSConfigDir();
@@ -678,15 +677,15 @@ public:
 };
 
 std::string
-BDMSConfig::_getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &defaultValue)
+BDMSConfig::_getBDMSConfigValueByPriority(const std::string &provided, const std::string &environValue, const std::string &profile, const std::string &defaultValue)
 {
     if (!provided.empty())
     {
         return provided;
     }
-    else if (!environ.empty())
+    else if (!environValue.empty())
     {
-        return environ;
+        return environValue;
     }
     else if (!profile.empty())
     {
@@ -1070,7 +1069,7 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 char *buffer;
                 DataStats stats = getStats(sessionID, bdmsDataID);
                 std::string type = stats.getBDMSDataType();
-                int size = stats.getTotalValueCount();
+                size_t size = stats.getTotalValueCount();
 
                 if (size == -1) {
                     return vec; // abort further processing
