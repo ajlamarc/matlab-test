@@ -1122,7 +1122,7 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 } else {
                     // if data can't be generated, get from BDMS
                     std::string endpoint =
-                        "/v5/data/" + sessionID + "/" + bdmsDataID;
+                        "data/" + sessionID + "/" + bdmsDataID;
                     bool success;
                     std::shared_ptr<httplib::Result> res;
                     std::tie(success, res) = get(endpoint);
@@ -1167,7 +1167,7 @@ const DataStats BaseBDMSDataManager::getStats(const SessionID &sessionID,
     catch (...)
     {
         // Make HEAD request for data
-        std::string baseEndpoint = "/v5/data/";
+        std::string baseEndpoint = "data/";
         std::ostringstream urlStream;
         urlStream << baseEndpoint << sessionID << "/" << bdmsDataID;
 
