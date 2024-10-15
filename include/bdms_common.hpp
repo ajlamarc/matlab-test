@@ -877,7 +877,7 @@ BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(BDMSPr
     resolved.apiKey = provided.apiKey;
     resolved.certificatePath = provided.certificatePath;
     resolved.userAgent = !provided.userAgent.empty() ? provided.userAgent : defaultUserAgent;
-    resolved.baseUrl = protocol + "://" + host + "/v5/";
+    resolved.baseUrl = protocol + "://" + host;
 
     return resolved;
 }
@@ -1122,7 +1122,7 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 } else {
                     // if data can't be generated, get from BDMS
                     std::string endpoint =
-                        "data/" + sessionID + "/" + bdmsDataID;
+                        "/v5/data/" + sessionID + "/" + bdmsDataID;
                     bool success;
                     std::shared_ptr<httplib::Result> res;
                     std::tie(success, res) = get(endpoint);
@@ -1167,7 +1167,7 @@ const DataStats BaseBDMSDataManager::getStats(const SessionID &sessionID,
     catch (...)
     {
         // Make HEAD request for data
-        std::string baseEndpoint = "data/";
+        std::string baseEndpoint = "/v5/data/";
         std::ostringstream urlStream;
         urlStream << baseEndpoint << sessionID << "/" << bdmsDataID;
 
