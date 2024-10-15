@@ -2,6 +2,9 @@
 #define CPPHTTPLIB_ZLIB_SUPPORT
 #define CPPHTTPLIB_READ_TIMEOUT_SECOND 20
 
+// TODO: remove
+#include "mex.h"
+
 #include "httplib.h"
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
@@ -20,49 +23,117 @@ using json = nlohmann::json;
 #include <memory>
 #include <sstream>
 #include <utility>
+#include <fstream>
+#include <sys/stat.h>
+#include <ctime>
+// TODO: remove
+#include <mutex>
 
-enum VectorType
+const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----)";
+
+const size_t CERT_BYTES_SIZE = strlen(CERT_BYTES);
+
+#ifdef _WIN32
+#include <direct.h>
+
+std::string HOME_DIR = "USERPROFILE";
+std::string PATH_SEPARATOR = "\\";
+#define MKDIR(dir) _mkdir(dir)
+#else
+#include <unistd.h>
+
+std::string HOME_DIR = "HOME";
+std::string PATH_SEPARATOR = "/";
+#define MKDIR(dir) mkdir(dir, 0511)
+#endif
+
+// Type definitions
+class GenericVectorBase
 {
-    BDMS_BOOL,
-    BDMS_UINT8,
-    BDMS_INT8,
-    BDMS_UINT16,
-    BDMS_INT16,
-    BDMS_UINT32,
-    BDMS_INT32,
-    BDMS_UINT64,
-    BDMS_INT64,
-    BDMS_FLOAT,
-    BDMS_DOUBLE
+public:
+    virtual ~GenericVectorBase() = default;
+    virtual char *data() = 0;
+    virtual size_t size() = 0;
+    virtual size_t byteSize() = 0;
+};
+
+template <typename T>
+class GenericVectorImpl : public GenericVectorBase
+{
+public:
+    std::vector<T> vec;
+
+    GenericVectorImpl(size_t size) : vec(size) {}
+
+    char *data() override
+    {
+        return reinterpret_cast<char *>(vec.data());
+    }
+
+    size_t size() override
+    {
+        return vec.size();
+    }
+
+    size_t byteSize() override
+    {
+        return vec.size() * sizeof(T);
+    }
 };
 
 struct GenericVector
 {
-    VectorType type;
-    union
-    {
-        std::vector<uint8_t> *uint8_vec;
-        std::vector<int8_t> *int8_vec;
-        std::vector<uint16_t> *uint16_vec;
-        std::vector<int16_t> *int16_vec;
-        std::vector<uint32_t> *uint32_vec;
-        std::vector<int32_t> *int32_vec;
-        std::vector<uint64_t> *uint64_vec;
-        std::vector<int64_t> *int64_vec;
-        std::vector<float> *float_vec;
-        std::vector<double> *double_vec;
-    } data;
+    std::unique_ptr<GenericVectorBase> data;
 
-    GenericVector() : type(BDMS_BOOL), data{nullptr} {}
-    ~GenericVector()
+    template <typename T>
+    void assign(size_t size)
     {
-        clear();
+        data = httplib::detail::make_unique<GenericVectorImpl<T>>(size);
     }
 
-    void clear()
+    char *buffer()
     {
-        delete data.uint8_vec;
-        data.uint8_vec = nullptr;
+        return data ? data->data() : nullptr;
+    }
+
+    size_t size()
+    {
+        return data ? data->size() : 0;
+    }
+
+    size_t byteSize()
+    {
+        return data ? data->byteSize() : 0;
     }
 };
 
@@ -83,17 +154,45 @@ enum HTTPMethod
     POST
 };
 
-// see https://stackoverflow.com/a/64054899
-#if __cplusplus < 201402L
-template <class T, class... Args>
-std::unique_ptr<T> make_unique(Args &&...args)
+struct BDMSProvidedConfig
 {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-#else
-using std::make_unique;
-#endif
+    std::string profile, host, apiKey, protocol, certificatePath, userAgent;
+};
+struct BDMSProfileConfig
+{
+    std::string host, apiKey, protocol, certificatePath;
+};
+struct BDMSResolvedConfig
+{
+    std::string baseUrl, apiKey, certificatePath, userAgent;
+};
 
+// Helper functions not tied to a specific class
+bool create_directories(const std::string &path)
+{
+    std::string current_path;
+    std::string dir;
+    std::string::size_type pos = 0;
+
+    while ((pos = path.find_first_of(PATH_SEPARATOR, pos)) != std::string::npos)
+    {
+        dir = path.substr(0, pos++);
+        current_path += dir;
+
+        if (current_path.length() > 0)
+        {
+            if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST)
+            {
+                return false;
+            }
+        }
+        current_path += PATH_SEPARATOR;
+    }
+
+    return (MKDIR(path.c_str()) == 0 || errno == EEXIST);
+}
+
+// Class definitions
 class DataStats
 {
 public:
@@ -312,7 +411,7 @@ const T DataStats::getMaxValue() const
 }
 
 // Common, static operations on BDMS data.
-class DataFunctions
+class BDMSDataFunctions
 {
 public:
     static void getRangeValues(const BDMSDataID &bdmsDataID, DataStats stats,
@@ -323,84 +422,20 @@ public:
     static void fillBufferWithSequence(T *buffer, T min_value, T max_value,
                                        T step_value);
     template <typename T>
-    static VectorType getVectorType();
-    template <typename T>
-    static void assignVector(GenericVector &vec, size_t size);
-    template <typename T>
     static void assignBufferAndVector(GenericVector &vec, char *&buffer,
                                       size_t size);
 };
 
-template <>
-VectorType DataFunctions::getVectorType<bool>() { return BDMS_BOOL; }
-template <>
-VectorType DataFunctions::getVectorType<uint8_t>() { return BDMS_UINT8; }
-template <>
-VectorType DataFunctions::getVectorType<int8_t>() { return BDMS_INT8; }
-template <>
-VectorType DataFunctions::getVectorType<uint16_t>() { return BDMS_UINT16; }
-template <>
-VectorType DataFunctions::getVectorType<int16_t>() { return BDMS_INT16; }
-template <>
-VectorType DataFunctions::getVectorType<uint32_t>() { return BDMS_UINT32; }
-template <>
-VectorType DataFunctions::getVectorType<int32_t>() { return BDMS_INT32; }
-template <>
-VectorType DataFunctions::getVectorType<uint64_t>() { return BDMS_UINT64; }
-template <>
-VectorType DataFunctions::getVectorType<int64_t>() { return BDMS_INT64; }
-template <>
-VectorType DataFunctions::getVectorType<float>() { return BDMS_FLOAT; }
-template <>
-VectorType DataFunctions::getVectorType<double>() { return BDMS_DOUBLE; }
-
-// Initialize vec for any type of GenericVector
 template <typename T>
-void DataFunctions::assignVector(GenericVector &vec, size_t size)
+void BDMSDataFunctions::assignBufferAndVector(GenericVector &vec, char *&buffer, size_t size)
 {
-    vec.type = getVectorType<T>();
-    switch (vec.type)
-    {
-    case BDMS_BOOL:
-    case BDMS_UINT8:
-    case BDMS_INT8:
-        vec.data.uint8_vec = new std::vector<uint8_t>(size);
-        break;
-    case BDMS_UINT16:
-    case BDMS_INT16:
-        vec.data.uint16_vec = new std::vector<uint16_t>(size);
-        break;
-    case BDMS_UINT32:
-    case BDMS_INT32:
-        vec.data.uint32_vec = new std::vector<uint32_t>(size);
-        break;
-    case BDMS_UINT64:
-    case BDMS_INT64:
-        vec.data.uint64_vec = new std::vector<uint64_t>(size);
-        break;
-    case BDMS_FLOAT:
-        vec.data.float_vec = new std::vector<float>(size);
-        break;
-    case BDMS_DOUBLE:
-        vec.data.double_vec = new std::vector<double>(size);
-        break;
-    default:
-        throw std::runtime_error("Unexpected vector type in assignVector");
-    }
-}
-
-// Initalize vec and buffer for any type of GenericVector
-template <typename T>
-void DataFunctions::assignBufferAndVector(GenericVector &vec, char *&buffer,
-                                          size_t size)
-{
-    assignVector<T>(vec, size);
-    buffer = reinterpret_cast<char *>(vec.data.uint8_vec->data());
+    vec.assign<T>(size);
+    buffer = vec.buffer();
 }
 
 template <typename T>
-void DataFunctions::fillBufferWithSequence(T *buffer, T min_value,
-                                           T max_value, T step_value)
+void BDMSDataFunctions::fillBufferWithSequence(T *buffer, T min_value,
+                                               T max_value, T step_value)
 {
     bool is_forward_stepping = step_value > 0;
 
@@ -424,9 +459,9 @@ void DataFunctions::fillBufferWithSequence(T *buffer, T min_value,
     }
 }
 
-void DataFunctions::getRangeValues(const BDMSDataID &identifier,
-                                   DataStats stats, char *buffer,
-                                   std::string type)
+void BDMSDataFunctions::getRangeValues(const BDMSDataID &identifier,
+                                       DataStats stats, char *buffer,
+                                       std::string type)
 {
     std::vector<std::string> identifierParts =
         DataStats::getIdentifierParts(identifier);
@@ -497,9 +532,9 @@ void DataFunctions::getRangeValues(const BDMSDataID &identifier,
     }
 }
 
-void DataFunctions::getConstantValues(const BDMSDataID &identifier,
-                                      char *buffer, size_t size,
-                                      std::string type)
+void BDMSDataFunctions::getConstantValues(const BDMSDataID &identifier,
+                                          char *buffer, size_t size,
+                                          std::string type)
 {
     std::vector<std::string> identifierParts =
         DataStats::getIdentifierParts(identifier);
@@ -591,14 +626,271 @@ void DataFunctions::getConstantValues(const BDMSDataID &identifier,
     }
 }
 
-class BaseBlueDataManager
+// Global log file stream
+std::ofstream logFile;
+std::mutex logFileMutex;
+
+void initializeLogging()
 {
-protected:
+    if (!logFile.is_open())
+    {
+        logFile.open("bdms_log.txt", std::ios::app);
+    }
+    if (!logFile.is_open())
+    {
+        throw std::runtime_error("Failed to open log file");
+    }
+}
+
+void closeLogging()
+{
+    if (logFile.is_open())
+    {
+        logFile.close();
+    }
+}
+
+void logMessage(const char *message)
+{
+    std::lock_guard<std::mutex> lock(logFileMutex);
+    if (logFile.is_open())
+    {
+        time_t now = time(0);
+        char *dt = ctime(&now);
+        logFile << dt << ": " << message << std::endl;
+        logFile.flush(); // Ensure the message is written immediately
+    }
+}
+
+/* Common, static operations for loading BDMS2 configuration values. */
+class BDMSConfig
+{
+private:
+    static std::string _getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &defaultValue);
+    static std::string _readBDMSKeyFromFile(const std::string &filePath, const std::string &profile, const std::string &key);
+    static std::string _getBDMSEnv(const std::string &key, const std::string &defaultValue = "");
+    static std::string _getBDMSConfigDir();
+    static std::string _getDefaultCertificatePath(const std::string &configDir);
+    static BDMSProfileConfig _getProfileHostTokenProtocolCertificateValues(const std::string &providedProfile);
+
+public:
+    static BDMSResolvedConfig getHostTokenProtocolCertificateAgentValues(BDMSProvidedConfig provided);
+};
+
+std::string
+BDMSConfig::_getBDMSConfigValueByPriority(const std::string &provided, const std::string &environ, const std::string &profile, const std::string &defaultValue)
+{
+    if (!provided.empty())
+    {
+        return provided;
+    }
+    else if (!environ.empty())
+    {
+        return environ;
+    }
+    else if (!profile.empty())
+    {
+        return profile;
+    }
+    return defaultValue;
+}
+
+// read value for key from "config" or "credentials" file based on profile
+std::string
+BDMSConfig::_readBDMSKeyFromFile(const std::string &filePath, const std::string &profile, const std::string &key)
+{
+    std::ifstream file(filePath);
+    if (file.is_open())
+    {
+        std::string line;
+        bool inCorrectProfile = false;
+        while (std::getline(file, line))
+        {
+            // Trim whitespace from the beginning and end of the line
+            line.erase(line.begin(), std::find_if(line.begin(), line.end(), [](unsigned char ch)
+                                                  { return !std::isspace(ch); }));
+            line.erase(std::find_if(line.rbegin(), line.rend(), [](unsigned char ch)
+                                    { return !std::isspace(ch); })
+                           .base(),
+                       line.end());
+
+            if (line == "[" + profile + "]")
+            {
+                inCorrectProfile = true;
+            }
+            else if (inCorrectProfile && line.find(key) == 0)
+            {
+                size_t equalsPos = line.find('=');
+                if (equalsPos != std::string::npos)
+                {
+                    std::string value = line.substr(equalsPos + 1);
+                    // Trim leading and trailing whitespace from the value
+                    value.erase(value.begin(), std::find_if(value.begin(), value.end(), [](unsigned char ch)
+                                                            { return !std::isspace(ch); }));
+                    value.erase(std::find_if(value.rbegin(), value.rend(), [](unsigned char ch)
+                                             { return !std::isspace(ch); })
+                                    .base(),
+                                value.end());
+                    return value;
+                }
+            }
+            else if (line.find('[') == 0)
+            {
+                // We've reached a new section, stop searching
+                break;
+            }
+        }
+    }
+    return "";
+}
+
+std::string BDMSConfig::_getBDMSEnv(const std::string &key, const std::string &defaultValue)
+{
+    std::string bdms2_key = "BDMS2_" + key;
+    const char *bdms2_value = std::getenv(bdms2_key.c_str());
+
+    if (bdms2_value != nullptr)
+    {
+        return std::string(bdms2_value);
+    }
+
+    std::string bdms_key = "BDMS_" + key;
+    const char *bdms_value = std::getenv(bdms_key.c_str());
+
+    if (bdms_value != nullptr)
+    {
+        return std::string(bdms_value);
+    }
+
+    return defaultValue;
+}
+
+std::string BDMSConfig::_getBDMSConfigDir()
+{
+    std::string defaultConfigDir = std::string(std::getenv(HOME_DIR.c_str())) + PATH_SEPARATOR + ".bdms2";
+    return _getBDMSEnv("CONFIG_DIRECTORY", defaultConfigDir);
+}
+
+/* If the cert cannot be found in the expected location (within the user's bdms config dir),
+    it will be copied there from the BlueOriginRootCA.py certificate data. Copying is necessary
+    because the bundled cert might not exist on the filesystem depending on how this client is packaged. */
+std::string BDMSConfig::_getDefaultCertificatePath(const std::string &configDir)
+{
+    if (!create_directories(configDir))
+    {
+        throw std::runtime_error("Failed to create bdms config directory");
+    }
+
+    std::string certPath = configDir + PATH_SEPARATOR + "BlueOriginRootCA.crt";
+
+    // Check if file exists
+    struct stat buffer;
+    bool exists = (stat(certPath.c_str(), &buffer) == 0);
+
+    if (!exists)
+    {
+        // File doesn't exist, create it and write the certificate
+        std::ofstream certFile(certPath, std::ios::out | std::ios::binary);
+        if (certFile.is_open())
+        {
+            certFile.write(CERT_BYTES, CERT_BYTES_SIZE);
+            certFile.close();
+        }
+        else
+        {
+            throw std::runtime_error("Failed to create BlueOriginRootCA.crt file");
+        }
+    }
+
+    return certPath;
+}
+
+/* Initialize a BaseBDMSDataManager object with the provided configuration.
+Empty strings are interpreted as "no value provided".
+
+Determine the BDMS host, user, API key, and API protocol based on (in precedence order):
+    * The values provided when calling the code
+    * Environment variables
+    * Values from the BDMS profile configuration
+    * Sensible defaults
+
+// TODO: how to handle user agent??
+This client also accepts an optional user agent string, which is used to identify the client
+making requests to BDMS and can be helpful for collaborative debugging. We recommend
+including the client name and version, ex. "igs-cpp-bdms2/1.0.0". */
+BDMSProfileConfig BDMSConfig::_getProfileHostTokenProtocolCertificateValues(const std::string &providedProfile)
+{
+    BDMSProfileConfig profile;
+    std::string profileName;
+
+    if (!providedProfile.empty())
+    {
+        profileName = providedProfile;
+    }
+    else
+    {
+        profileName = _getBDMSEnv("API_PROFILE", "default");
+    }
+
+    std::string configDir = _getBDMSConfigDir();
+    std::string configPath = configDir + PATH_SEPARATOR + "config";
+    std::string credentialsPath = configDir + PATH_SEPARATOR + "credentials";
+
+    std::string certificatePath = _getDefaultCertificatePath(configDir);
+
+    profile.host = _readBDMSKeyFromFile(configPath, profileName, "bdms_api_host");
+    profile.protocol = _readBDMSKeyFromFile(configPath, profileName, "bdms_api_protocol");
+    profile.certificatePath = _readBDMSKeyFromFile(configPath, profileName, "bdms_certificate_path");
+    profile.apiKey = _readBDMSKeyFromFile(credentialsPath, profileName, "bdms_secret_api_key");
+
+    return profile;
+}
+
+BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(BDMSProvidedConfig provided)
+{
+    BDMSResolvedConfig resolved;
+
+    // TODO: enable this code when works as expected (add tests)
+    // BDMSProfileConfig profile = BDMSConfig::_getProfileHostTokenProtocolCertificateValues(provided.profile);
+
+    // std::string environHost = BDMSConfig::_getBDMSEnv("API_HOST");
+    // std::string environProtocol = BDMSConfig::_getBDMSEnv("API_PROTOCOL");
+    // std::string environApiKey = BDMSConfig::_getBDMSEnv("SECRET_API_KEY");
+    // std::string environCertificatePath = BDMSConfig::_getBDMSEnv("CERTIFICATE_PATH");
+
+    std::string defaultHost = "bdms2.blueorigin.com";
+    std::string defaultProtocol = "https";
+    std::string defaultApiKey = "";
+    std::string defaultCertificatePath = "";
+    std::string defaultUserAgent = "cpp-bdms2/unknown";
+
+    std::string host, protocol;
+
+    // evaluate configuration values in precedence order described in docstring
+    // host = _getBDMSConfigValueByPriority(provided.host, environHost, profile.host, defaultHost);
+    // protocol = _getBDMSConfigValueByPriority(provided.protocol, environProtocol, profile.protocol, defaultProtocol);
+    host = provided.host;
+    protocol = provided.protocol;
+
+    // Set class variables based on config
+    // resolved.apiKey = _getBDMSConfigValueByPriority(provided.apiKey, environApiKey, profile.apiKey, defaultApiKey);
+    // resolved.certificatePath = _getBDMSConfigValueByPriority(provided.certificatePath, environCertificatePath, profile.certificatePath, defaultCertificatePath);
+    resolved.apiKey = provided.apiKey;
+    resolved.certificatePath = provided.certificatePath;
+    resolved.userAgent = !provided.userAgent.empty() ? provided.userAgent : defaultUserAgent;
+    resolved.baseUrl = protocol + "://" + host + "/v5/";
+
+    return resolved;
+}
+
+class BaseBDMSDataManager
+{
+private:
     std::string _apiKey;
     std::string _baseUrl;
     std::string _userAgent;
+    std::string _certificatePath;
     httplib::Client *client();
-    // ***************************************
     std::pair<bool, std::shared_ptr<httplib::Result>>
     request(const std::string &endpoint, const json &body, HTTPMethod method);
     std::pair<bool, std::shared_ptr<httplib::Result>>
@@ -607,33 +899,41 @@ protected:
     head(const std::string &endpoint);
     std::pair<bool, std::shared_ptr<httplib::Result>>
     get(const std::string &endpoint);
+
+protected:
     std::vector<std::future<GenericVector>>
     getDataArraysAsync(const std::string &sessionID,
                        const std::vector<std::string> &ids);
-
-public:
     const DataStats getStats(const SessionID &sessionID,
                              const BDMSDataID &bdmsDataID);
 
-    BaseBlueDataManager(std::string apiKey, std::string baseUrl, std::string userAgent)
-        : _apiKey(apiKey), _baseUrl(baseUrl), _userAgent(userAgent) {}
+public:
+    BaseBDMSDataManager(BDMSProvidedConfig provided)
+    {
+        BDMSResolvedConfig resolved = BDMSConfig::getHostTokenProtocolCertificateAgentValues(provided);
+        _apiKey = resolved.apiKey;
+        _baseUrl = resolved.baseUrl;
+        _userAgent = resolved.userAgent;
+        _certificatePath = resolved.certificatePath;
+    }
 };
 
-httplib::Client *BaseBlueDataManager::client()
+httplib::Client *BaseBDMSDataManager::client()
 {
     static thread_local std::unique_ptr<httplib::Client> _client =
-        make_unique<httplib::Client>(_baseUrl);
+        httplib::detail::make_unique<httplib::Client>(_baseUrl);
     // default connection timeout is 300 seconds, which is sufficient
     _client->set_read_timeout(std::chrono::seconds(300));
     _client->set_write_timeout(std::chrono::seconds(300));
     _client->set_keep_alive(true);
     _client->set_follow_location(true);
     _client->set_bearer_token_auth(_apiKey);
+    _client->set_ca_cert_path(_certificatePath, "");
     return _client.get();
 }
 
 std::pair<bool, std::shared_ptr<httplib::Result>>
-BaseBlueDataManager::request(const std::string &endpoint, const json &body,
+BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
                              HTTPMethod method)
 {
     httplib::Headers headers = {
@@ -648,7 +948,9 @@ BaseBlueDataManager::request(const std::string &endpoint, const json &body,
     {
         if (retry > 0)
         {
-            // Back-off delay
+            std::ostringstream debugMsg;
+            debugMsg << "Debug: Retrying request (attempt " << retry + 1 << ")";
+            logMessage(debugMsg.str().c_str());
             std::this_thread::sleep_for(std::chrono::seconds(retry - 1));
         }
         std::shared_ptr<httplib::Result> resPtr;
@@ -667,85 +969,86 @@ BaseBlueDataManager::request(const std::string &endpoint, const json &body,
             resPtr =
                 std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
         }
-        if (resPtr && resPtr->error() == httplib::Error::Success)
+
+        std::ostringstream debugMsg;
+        debugMsg << "Debug: Request method: " << (method == POST ? "POST" : (method == HEAD ? "HEAD" : "GET")) << "\n"
+                 << "Debug: Endpoint: " << endpoint;
+        logMessage(debugMsg.str().c_str());
+
+        if (resPtr)
         {
-            if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
+            logMessage("Debug: Response received");
+
+            std::ostringstream errorMsg;
+            errorMsg << "Debug: Error code: " << static_cast<int>(resPtr->error());
+            logMessage(errorMsg.str().c_str());
+
+            if (resPtr->error() == httplib::Error::Success)
             {
-                // Forbidden (invalid API key)
-                // TODO: catch error and raise back to MATLAB
-                // auto header = std::to_string((*resPtr)->status) + " HTTP error";
-                // MessageBox(NULL,
-                //            TEXT("Your request was rejected by BDMS. Please "
-                //                 "verify that your API key is up-to-date, and "
-                //                 "you have access to the requested campaign.  "
-                //                 "To set a new API key, at the top of WinPlot "
-                //                 "click Data -> BlueAcc -> Reset API key."),
-                //            TEXT(header.c_str()), MB_ICONERROR);
-                return std::make_pair(false, resPtr);
+                std::ostringstream statusMsg;
+                statusMsg << "Debug: Status code: " << (*resPtr)->status << "\n"
+                          << "Debug: Response body size: " << (*resPtr)->body.size() << " bytes";
+                logMessage(statusMsg.str().c_str());
+
+                if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
+                {
+                    std::ostringstream authErrorMsg;
+                    authErrorMsg << "Debug: Authentication error (status " << (*resPtr)->status << ")";
+                    logMessage(authErrorMsg.str().c_str());
+                    return std::make_pair(false, resPtr);
+                }
+                else if ((*resPtr)->status == 200)
+                {
+                    logMessage("Debug: Request successful");
+                    return std::make_pair(true, resPtr);
+                }
+                else if (retryStatusCodes.find((*resPtr)->status) == retryStatusCodes.end())
+                {
+                    logMessage("Debug: Non-retryable error");
+                    return std::make_pair(false, resPtr);
+                }
+                else
+                {
+                    std::ostringstream retryErrorMsg;
+                    retryErrorMsg << "Debug: Retryable error (status " << (*resPtr)->status << ")";
+                    logMessage(retryErrorMsg.str().c_str());
+                }
             }
-            // If response is successful, return the result
-            else if ((*resPtr)->status == 200)
+            else
             {
-                return std::make_pair(true, resPtr);
-            }
-            else if (retryStatusCodes.find((*resPtr)->status) ==
-                     retryStatusCodes.end())
-            {
-                // TODO: catch error and raise back to MATLAB
-                // const json jsonResponse = json::parse((*resPtr)->body);
-                // auto modalBody = jsonResponse.dump(2);
-                // MessageBox(NULL, TEXT(modalBody.c_str()),
-                //            TEXT("BDMS Request failure"), MB_ICONERROR);
-                // If response is not successful but not in retry
-                // conditions, break the loop and return
-                return std::make_pair(false, resPtr);
+                logMessage("Debug: HTTP request failed at transport layer");
             }
         }
-        // failed 3 retries
+        else
+        {
+            logMessage("Debug: No response received");
+        }
+
         if (retry == 3)
         {
-            // if (resPtr->error() != httplib::Error::Success) {
-            //     // TODO: catch error and raise back to MATLAB
-            //     auto modalBody =
-            //         "HTTP request failed at transport layer with error code: " +
-            //         httplibErrorToString(resPtr->error()) +
-            //         " for endpoint: " + endpoint + "and body: " + body.dump(2) +
-            //         "Please contact the BDMS team.";
-            //     MessageBox(NULL, TEXT(modalBody.c_str()),
-            //                TEXT("HTTP Request Failure"), MB_ICONERROR);
-            // } else {
-            //     // TODO: catch error and raise back to MATLAB
-            //     /* Assume that a 429 response is a fast writes rate limit,
-            //     in which case we do not want to disturb the user and block
-            //     execution with a popup. */
-            //     if ((*resPtr)->status != 429) {
-            //         const json jsonResponse = json::parse((*resPtr)->body);
-            //         auto modalBody = jsonResponse.dump(2);
-            //         MessageBox(NULL, TEXT(modalBody.c_str()),
-            //                    TEXT("BDMS Request Max Retries"), MB_ICONERROR);
-            //     }
-            // }
+            logMessage("Debug: Max retries reached");
             return std::make_pair(false, resPtr);
         }
     }
 
+    logMessage("Debug: Request failed after all retries");
     return std::make_pair(false, nullptr);
 }
 
 std::pair<bool, std::shared_ptr<httplib::Result>>
-BaseBlueDataManager::head(const std::string &endpoint)
+BaseBDMSDataManager::head(const std::string &endpoint)
 {
     return request(endpoint, json({}), HEAD);
 }
 
 std::pair<bool, std::shared_ptr<httplib::Result>>
-BaseBlueDataManager::post(const std::string &endpoint, const json &body)
+BaseBDMSDataManager::post(const std::string &endpoint, const json &body)
 {
     return request(endpoint, body, POST);
 }
 
 std::pair<bool, std::shared_ptr<httplib::Result>>
-BaseBlueDataManager::get(const std::string &endpoint)
+BaseBDMSDataManager::get(const std::string &endpoint)
 {
     return request(endpoint, json({}), GET);
 }
@@ -753,7 +1056,7 @@ BaseBlueDataManager::get(const std::string &endpoint)
 /* This function does not care about multidimensional data.
 It is the responsibility of the caller to reshape resulting chunks. */
 std::vector<std::future<GenericVector>>
-BaseBlueDataManager::getDataArraysAsync(const std::string &sessionID,
+BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                                         const std::vector<std::string> &ids)
 {
     std::vector<std::future<GenericVector>> futures;
@@ -778,23 +1081,23 @@ BaseBlueDataManager::getDataArraysAsync(const std::string &sessionID,
                 // the returned data.
                 if (type == "bool" || type == "char" || type == "byte" ||
                     type == "int8" || type == "uint8") {
-                    DataFunctions::assignBufferAndVector<uint8_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<uint8_t>(vec, buffer, size);
                 } else if (type == "uint16") {
-                    DataFunctions::assignBufferAndVector<uint16_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<uint16_t>(vec, buffer, size);
                 } else if (type == "int16") {
-                    DataFunctions::assignBufferAndVector<int16_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<int16_t>(vec, buffer, size);
                 } else if (type == "uint32") {
-                    DataFunctions::assignBufferAndVector<uint32_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<uint32_t>(vec, buffer, size);
                 } else if (type == "int32") {
-                    DataFunctions::assignBufferAndVector<int32_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<int32_t>(vec, buffer, size);
                 } else if (type == "uint64") {
-                    DataFunctions::assignBufferAndVector<uint64_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<uint64_t>(vec, buffer, size);
                 } else if (type == "int64") {
-                    DataFunctions::assignBufferAndVector<int64_t>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<int64_t>(vec, buffer, size);
                 } else if (type == "float") {
-                    DataFunctions::assignBufferAndVector<float>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<float>(vec, buffer, size);
                 } else if (type == "double") {
-                    DataFunctions::assignBufferAndVector<double>(vec, buffer, size);
+                    BDMSDataFunctions::assignBufferAndVector<double>(vec, buffer, size);
                 } else {
                     throw std::runtime_error("Unexpected BDMS data type in getData");
                     // TODO: surface error
@@ -813,10 +1116,10 @@ BaseBlueDataManager::getDataArraysAsync(const std::string &sessionID,
 
                 if (id_type_base == "special" &&
                     (id_type_special == "steps" || id_type_special == "range")) {
-                    DataFunctions::getRangeValues(bdmsDataID, stats, buffer, type);
+                    BDMSDataFunctions::getRangeValues(bdmsDataID, stats, buffer, type);
                 } else if (id_type_base == "special" &&
                         id_type_special == "constant") {
-                    DataFunctions::getConstantValues(bdmsDataID, buffer, size, type);
+                    BDMSDataFunctions::getConstantValues(bdmsDataID, buffer, size, type);
                 } else {
                     // if data can't be generated, get from BDMS
                     std::string endpoint =
@@ -854,7 +1157,7 @@ BaseBlueDataManager::getDataArraysAsync(const std::string &sessionID,
     return futures;
 }
 
-const DataStats BaseBlueDataManager::getStats(const SessionID &sessionID,
+const DataStats BaseBDMSDataManager::getStats(const SessionID &sessionID,
                                               const BDMSDataID &bdmsDataID)
 {
     try
