@@ -2,9 +2,6 @@
 #define CPPHTTPLIB_ZLIB_SUPPORT
 #define CPPHTTPLIB_READ_TIMEOUT_SECOND 20
 
-// TODO: remove
-#include "mex.h"
-
 #include "httplib.h"
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
@@ -25,6 +22,7 @@ using json = nlohmann::json;
 #include <fstream>
 #include <sys/stat.h>
 #include <ctime>
+#include <mutex>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -625,11 +623,13 @@ void BDMSDataFunctions::getConstantValues(const BDMSDataID &identifier,
 
 // Global log file stream
 std::ofstream logFile;
+std::mutex logFileMutex;
 
 void initializeLogging()
 {
     if (!logFile.is_open())
     {
+        std::lock_guard<std::mutex> lock(logFileMutex);
         logFile.open("bdms_log.txt", std::ios::app);
     }
     if (!logFile.is_open())

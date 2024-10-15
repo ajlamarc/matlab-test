@@ -1,3 +1,6 @@
+// see https://www.mathworks.com/matlabcentral/answers/2147499-why-does-matlab-r2024a-crash-when-running-a-mex-file-compiled-with-the-microsoft-visual-studio-2022
+#define _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR
+
 #include "mex.h"
 #include "matrix.h"
 #include "class_handle.hpp"
