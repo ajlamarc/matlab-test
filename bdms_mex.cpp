@@ -65,13 +65,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     if (!strcmp("getArray", cmd))
     {
         // Check parameters
-        if (nlhs != 1 || nrhs != 4)
+        if (nlhs != 1 || nrhs != 5)
             mexErrMsgTxt("getArray: Unexpected arguments.");
 
         char sessionID[256];
-        mxGetString(prhs[1], sessionID, sizeof(sessionID));
+        mxGetString(prhs[2], sessionID, sizeof(sessionID));
 
-        const mxArray *cellArray = prhs[2];
+        const mxArray *cellArray = prhs[3];
         size_t numDataIDs = mxGetNumberOfElements(cellArray);
         char **dataIDs = (char **)mxCalloc(numDataIDs, sizeof(char *));
 
@@ -83,7 +83,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         }
 
         // Get the expected output size
-        size_t expectedSize = (size_t)mxGetScalar(prhs[3]);
+        size_t expectedSize = (size_t)mxGetScalar(prhs[4]);
 
         // Create MATLAB uint8 column vector with the expected size
         mwSize dims[2] = {expectedSize, 1};
