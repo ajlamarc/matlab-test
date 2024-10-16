@@ -20,7 +20,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
         with:
-          submodules: "recursive"
+          # submodules: "recursive"
           lfs: true
 
       - name: Set up MATLAB
@@ -51,16 +51,16 @@ jobs:
           # add NASM to path, isn't done automatically
           echo "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Build OpenSSL (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          cd deps/openssl
-          ./config
-          make
-          mkdir -p ${{github.workspace}}/lib ${{github.workspace}}/include
-          cp libcrypto.a libssl.a ${{github.workspace}}/lib/
-          # cp -R include/openssl ${{github.workspace}}/include/
-          cd ../..
+      # - name: Build OpenSSL (Unix)
+      #   if: runner.os != 'Windows'
+      #   run: |
+      #     cd deps/openssl
+      #     ./config
+      #     make
+      #     mkdir -p ${{github.workspace}}/lib ${{github.workspace}}/include
+      #     cp libcrypto.a libssl.a ${{github.workspace}}/lib/
+      #     # cp -R include/openssl ${{github.workspace}}/include/
+      #     cd ../..
 
       # - name: Build OpenSSL (Windows)
       #   if: runner.os == 'Windows'
@@ -74,17 +74,17 @@ jobs:
       #     # xcopy /E /I include\openssl ${{github.workspace}}/include\openssl
       #     cd ../..
 
-      - name: Unzip and Build zlib (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          cd deps
-          unzip zlib1213.zip
-          cd zlib-1.2.13
-          ./configure
-          make
-          cp libz.a ${{github.workspace}}/lib/
-          # cp zlib.h zconf.h ${{github.workspace}}/include/
-          cd ../..
+      # - name: Unzip and Build zlib (Unix)
+      #   if: runner.os != 'Windows'
+      #   run: |
+      #     cd deps
+      #     unzip zlib1213.zip
+      #     cd zlib-1.2.13
+      #     ./configure
+      #     make
+      #     cp libz.a ${{github.workspace}}/lib/
+      #     # cp zlib.h zconf.h ${{github.workspace}}/include/
+      #     cd ../..
 
       # - name: Unzip and Build zlib (Windows)
       #   if: runner.os == 'Windows'
@@ -97,23 +97,24 @@ jobs:
       #     # copy zlib.h zconf.h ${{github.workspace}}/include
       #     cd ../..
 
-      # - name: Compile MEX file
-      #   uses: matlab-actions/run-command@v1
-      #   with:
-      #     command: compile_bdms_mex
+      - name: Compile MEX file
+        uses: matlab-actions/run-command@v1
+        with:
+          command: compile_bdms_mex
 
-      # - name: Get MEX extension on Linux/macOS
-      #   if: runner.os != 'Windows'
-      #   run: echo "MEXEXT=$(mexext)" >> $GITHUB_ENV
+      - name: Get MEX extension on Linux/macOS
+        if: runner.os != 'Windows'
+        run: echo "MEXEXT=$(mexext)" >> $GITHUB_ENV
 
-      # - name: Get MEX extension on Windows
-      #   if: runner.os == 'Windows'
-      #   run: echo "MEXEXT=$(mexext.bat)" >> $env:GITHUB_ENV
+      - name: Get MEX extension on Windows
+        if: runner.os == 'Windows'
+        run: echo "MEXEXT=$(mexext.bat)" >> $env:GITHUB_ENV
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: bdms-artifacts-${{runner.os}}-${{matrix.version}}
           path: |
-            ./lib/*
+            ./**/*.${{env.MEXEXT}}
+          # ./lib/*
           retention-days: 5
