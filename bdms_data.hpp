@@ -29,7 +29,7 @@ const mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector
     for (size_t i = 0; i < chunks.size(); ++i)
     {
         size_t chunkByteSize = chunks[i].byteSize();
-        std::memcpy(outputBuffer + byteOffset, chunk.buffer(), chunkByteSize);
+        std::memcpy(outputBuffer + byteOffset, chunks[i].buffer(), chunkByteSize);
         byteOffset += chunkByteSize;
     }
 
