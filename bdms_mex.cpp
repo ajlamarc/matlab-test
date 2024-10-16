@@ -23,7 +23,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if (nrhs != 6)
             mexErrMsgTxt("New: Requires 5 additional arguments.");
 
-        initializeLogging();
+        // initializeLogging();
 
         char apiKey[256], host[256], protocol[256], certificatePath[256], userAgent[256];
         mxGetString(prhs[1], apiKey, sizeof(apiKey));
@@ -57,7 +57,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if (nlhs != 0 || nrhs != 2)
             mexWarnMsgTxt("Delete: Unexpected arguments ignored.");
 
-        closeLogging();
+        // closeLogging();
         return;
     }
 
