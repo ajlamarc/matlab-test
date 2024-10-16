@@ -68,7 +68,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     if (!strcmp("getArray", cmd))
     {
         // Check parameters
-        if (nlhs != 1 || nrhs != 5)
+        if (nlhs != 1 || nrhs != 4)
             mexErrMsgTxt("getArray: Unexpected arguments.");
 
         char sessionID[256];
@@ -84,22 +84,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             char *str = mxArrayToString(cellElement);
             dataIDs[i] = str;
         }
-
-        // Get the expected output size
-        size_t expectedSize = (size_t)mxGetScalar(prhs[4]);
-
-        // Create MATLAB uint8 column vector with the expected size
-        mwSize dims[2] = {expectedSize, 1};
-        plhs[0] = mxCreateNumericArray(2, dims, mxUINT8_CLASS, mxREAL);
-
         std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
-        // Get the data and copy directly into the mxArray
-        size_t dataSize = bdms_instance->getArray(sessionID, ids, static_cast<char *>(mxGetData(plhs[0])));
-
-        // Verify that the actual data size matches the expected size
-        if (dataSize != expectedSize)
-            mexErrMsgTxt("Actual data size does not match expected size");
-
+        prhs[0] = bdms_instance->getArray(sessionID, ids);
         for (int i = 0; i < numDataIDs; i++)
         {
             mxFree(dataIDs[i]);
