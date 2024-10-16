@@ -911,6 +911,7 @@ public:
         _userAgent = resolved.userAgent;
         _certificatePath = resolved.certificatePath;
     }
+    BaseBDMSDataManager() : BaseBDMSDataManager(BDMSProvidedConfig()) {}
 };
 
 httplib::Client *BaseBDMSDataManager::client()

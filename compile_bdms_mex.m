@@ -4,7 +4,7 @@
 current_dir = pwd;
 
 % Define the include paths
-include_dir = fullfile(current_dir, 'include');
+include_dir = fullfile(current_dir, 'bdms2-cpp-library', 'include');
 include_paths = {current_dir, ...
                      include_dir, ...
                      fullfile(include_dir, 'nlohmann'), ...
@@ -15,7 +15,7 @@ include_paths = {current_dir, ...
 include_flags = cellfun(@(x) ['-I"' x '"'], include_paths, 'UniformOutput', false);
 
 %define library files
-base_library_dir = fullfile(current_dir, 'lib');
+base_library_dir = fullfile(current_dir, 'bdms2-cpp-library', 'lib');
 
 if ismac
     library_dir = fullfile(base_library_dir, 'mac');
