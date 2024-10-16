@@ -85,7 +85,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             dataIDs[i] = str;
         }
         std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
-        prhs[0] = bdms_instance->getArray(sessionID, ids);
+        plhs[0] = bdms_instance->getArray(sessionID, ids);
         for (int i = 0; i < numDataIDs; i++)
         {
             mxFree(dataIDs[i]);
