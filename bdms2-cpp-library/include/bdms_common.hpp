@@ -22,7 +22,7 @@ using json = nlohmann::json;
 #include <fstream>
 #include <sys/stat.h>
 #include <ctime>
-// #include <mutex>
+#include <mutex>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -622,40 +622,40 @@ void BDMSDataFunctions::getConstantValues(const BDMSDataID &identifier,
 }
 
 // Global log file stream
-// std::ofstream logFile;
-// std::mutex logFileMutex;
+std::ofstream logFile;
+std::mutex logFileMutex;
 
-// void initializeLogging()
-// {
-//     if (!logFile.is_open())
-//     {
-//         std::lock_guard<std::mutex> lock(logFileMutex);
-//         logFile.open("bdms_log.txt", std::ios::app);
-//     }
-//     if (!logFile.is_open())
-//     {
-//         throw std::runtime_error("Failed to open log file");
-//     }
-// }
+void initializeLogging()
+{
+    if (!logFile.is_open())
+    {
+        std::lock_guard<std::mutex> lock(logFileMutex);
+        logFile.open("bdms_log.txt", std::ios::app);
+    }
+    if (!logFile.is_open())
+    {
+        throw std::runtime_error("Failed to open log file");
+    }
+}
 
-// void closeLogging()
-// {
-//     if (logFile.is_open())
-//     {
-//         logFile.close();
-//     }
-// }
+void closeLogging()
+{
+    if (logFile.is_open())
+    {
+        logFile.close();
+    }
+}
 
-// void logMessage(const char *message)
-// {
-//     if (logFile.is_open())
-//     {
-//         time_t now = time(0);
-//         char *dt = ctime(&now);
-//         logFile << dt << ": " << message << std::endl;
-//         logFile.flush(); // Ensure the message is written immediately
-//     }
-// }
+void logMessage(const char *message)
+{
+    if (logFile.is_open())
+    {
+        time_t now = time(0);
+        char *dt = ctime(&now);
+        logFile << dt << ": " << message << std::endl;
+        logFile.flush(); // Ensure the message is written immediately
+    }
+}
 
 /* Common, static operations for loading BDMS2 configuration values. */
 class BDMSConfig
@@ -1024,6 +1024,13 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 DataStats stats = getStats(sessionID, bdmsDataID);
                 std::string type = stats.getBDMSDataType();
                 size_t size = stats.getTotalValueCount();
+
+                std::ostringstream debugMsg;
+                debugMsg << "Debug: BDMSDataID: " << bdmsDataID << "\n"
+                         << "Debug: Session ID: " << sessionID << "\n"
+                         << "Debug: Type: " << type << "\n"
+                         << "Debug: Size: " << size << "\n";
+                logMessage(debugMsg.str().c_str());
 
                 if (size == -1) {
                     return vec; // abort further processing
