@@ -20,10 +20,6 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::
         totalByteSize += chunks[i].byteSize();
     }
 
-    std::ostringstream debugMsg;
-    debugMsg << "Debug: Total byte size: " << totalByteSize;
-    logMessage(debugMsg.str().c_str());
-
     // Create MATLAB uint8 column vector with the expected size
     mwSize dims[2] = {totalByteSize, 1};
     mxArray *outputBytes = mxCreateNumericArray(2, dims, mxUINT8_CLASS, mxREAL);

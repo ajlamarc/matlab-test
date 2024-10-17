@@ -22,7 +22,7 @@ using json = nlohmann::json;
 #include <fstream>
 #include <sys/stat.h>
 #include <ctime>
-#include <mutex>
+// #include <mutex>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -205,7 +205,7 @@ public:
     static T littleEndianHexToDecimal(std::string &littleEndianHex);
     const std::string getBDMSDataType() const;
     const size_t getDataCount() const;
-    const size_t getDimensionality() const;
+    std::vector<size_t> getDimensionality() const;
     const size_t getTotalValueCount() const;
     template <typename T>
     const T getMinValue() const;
@@ -341,34 +341,56 @@ const size_t DataStats::getDataCount() const { return this->data_count; }
 
 const size_t DataStats::getTotalValueCount() const
 {
-    size_t dimensionality = this->getDimensionality();
-    if (dimensionality == -1)
-        return -1;
-    return this->data_count * dimensionality;
+    std::vector<size_t> dimensionality = this->getDimensionality();
+    size_t total = this->data_count;
+
+    for (size_t i = 0; i < dimensionality.size(); ++i)
+    {
+        total *= dimensionality[i];
+    }
+
+    return total;
 }
 
-/* Returns -1 if data is 3-dimensional or greater, otherwise the single
-dimensionality value.  1 represents 1-dimensional, any other is two-dimensional.
-*/
-const size_t DataStats::getDimensionality() const
+std::vector<size_t> DataStats::getDimensionality() const
 {
-    size_t pos = this->data_type.find(',');
-    if (pos != std::string::npos)
-    {
-        std::string dimensionality = this->data_type.substr(pos + 1);
+    std::vector<size_t> dimensions;
+    std::string remaining = this->data_type;
+    size_t pos = 0;
 
-        // found a second comma, so it's 3-dimensional or greater
-        size_t pos2 = dimensionality.find(',');
-        if (pos2 != std::string::npos)
-            return -1;
-        return (size_t)std::stoi(dimensionality);
+    while ((pos = remaining.find(',')) != std::string::npos)
+    {
+        std::string dimension = remaining.substr(0, pos);
+        try
+        {
+            dimensions.push_back(std::stoul(dimension));
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error("Failed to parse dimensionality of identifier: " + this->identifier);
+        }
+        remaining = remaining.substr(pos + 1);
     }
-    // auto modalBody =
-    //     "Failed to parse dimensionality of the following data identifier: " +
-    //     this->identifier + ". Please contact the BDMS team.";
-    // MessageBox(NULL, TEXT(modalBody.c_str()), TEXT("getDimensionality error"),
-    //            MB_ICONERROR);
-    throw std::runtime_error("getDimensionality error");
+
+    // Add the last dimension
+    if (!remaining.empty())
+    {
+        try
+        {
+            dimensions.push_back(std::stoul(remaining));
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error("Failed to parse dimensionality of identifier: " + this->identifier);
+        }
+    }
+
+    if (dimensions.empty())
+    {
+        throw std::runtime_error("getDimensionality error: No dimensions found");
+    }
+
+    return dimensions;
 }
 
 template <typename T>
@@ -622,40 +644,40 @@ void BDMSDataFunctions::getConstantValues(const BDMSDataID &identifier,
 }
 
 // Global log file stream
-std::ofstream logFile;
-std::mutex logFileMutex;
+// std::ofstream logFile;
+// std::mutex logFileMutex;
 
-void initializeLogging()
-{
-    if (!logFile.is_open())
-    {
-        std::lock_guard<std::mutex> lock(logFileMutex);
-        logFile.open("bdms_log.txt", std::ios::app);
-    }
-    if (!logFile.is_open())
-    {
-        throw std::runtime_error("Failed to open log file");
-    }
-}
+// void initializeLogging()
+// {
+//     if (!logFile.is_open())
+//     {
+//         std::lock_guard<std::mutex> lock(logFileMutex);
+//         logFile.open("bdms_log.txt", std::ios::app);
+//     }
+//     if (!logFile.is_open())
+//     {
+//         throw std::runtime_error("Failed to open log file");
+//     }
+// }
 
-void closeLogging()
-{
-    if (logFile.is_open())
-    {
-        logFile.close();
-    }
-}
+// void closeLogging()
+// {
+//     if (logFile.is_open())
+//     {
+//         logFile.close();
+//     }
+// }
 
-void logMessage(const char *message)
-{
-    if (logFile.is_open())
-    {
-        time_t now = time(0);
-        char *dt = ctime(&now);
-        logFile << dt << ": " << message << std::endl;
-        logFile.flush(); // Ensure the message is written immediately
-    }
-}
+// void logMessage(const char *message)
+// {
+//     if (logFile.is_open())
+//     {
+//         time_t now = time(0);
+//         char *dt = ctime(&now);
+//         logFile << dt << ": " << message << std::endl;
+//         logFile.flush(); // Ensure the message is written immediately
+//     }
+// }
 
 /* Common, static operations for loading BDMS2 configuration values. */
 class BDMSConfig
@@ -1024,17 +1046,6 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 DataStats stats = getStats(sessionID, bdmsDataID);
                 std::string type = stats.getBDMSDataType();
                 size_t size = stats.getTotalValueCount();
-
-                std::ostringstream debugMsg;
-                debugMsg << "Debug: BDMSDataID: " << bdmsDataID << "\n"
-                         << "Debug: Session ID: " << sessionID << "\n"
-                         << "Debug: Type: " << type << "\n"
-                         << "Debug: Size: " << size << "\n";
-                logMessage(debugMsg.str().c_str());
-
-                if (size == -1) {
-                    return vec; // abort further processing
-                }
 
                 // Set buffer and vector up for given type
                 // This can't be type agnostic since we need to provide the type of
