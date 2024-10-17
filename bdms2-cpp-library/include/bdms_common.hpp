@@ -356,8 +356,22 @@ std::vector<size_t> DataStats::getDimensionality() const
 {
     std::vector<size_t> dimensions;
     std::string remaining = this->data_type;
-    size_t pos = 0;
 
+    // skip over "data type", e.g. the "int32" part of "int32,4,3"
+    size_t typePos = remaining.find(',');
+    if (typePos == std::string::npos)
+    {
+        throw std::runtime_error("Failed to parse dimensionality of identifier (comma not found): " + this->identifier);
+    }
+
+    // Extract the dimensionality part
+    remaining = remaining.substr(typePos + 1);
+    if (remaining.empty())
+    {
+        throw std::runtime_error("Failed to parse dimensionality of identifier (remaining is empty): " + this->identifier);
+    }
+
+    size_t pos = 0;
     while ((pos = remaining.find(',')) != std::string::npos)
     {
         std::string dimension = remaining.substr(0, pos);
