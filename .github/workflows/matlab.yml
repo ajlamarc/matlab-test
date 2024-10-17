@@ -97,10 +97,10 @@ jobs:
       #     # copy zlib.h zconf.h ${{github.workspace}}/include
       #     cd ../..
 
-      # - name: Compile MEX file
-      #   uses: matlab-actions/run-command@v1
-      #   with:
-      #     command: compile_bdms_mex
+      - name: Compile MEX file
+        uses: matlab-actions/run-command@v1
+        with:
+          command: compile_bdms_mex
 
       - name: Get MEX extension on Linux/macOS
         if: runner.os != 'Windows'
