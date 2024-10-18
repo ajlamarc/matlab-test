@@ -38,16 +38,17 @@ else % Unix (Linux and macOS)
     library_files = {fullfile(library_dir, 'libssl.a'), ...
                          fullfile(library_dir, 'libcrypto.a'), ...
                          fullfile(library_dir, 'libz.a')};
+
+    if islinux
+        library_files{end + 1} = '-ldl';
+    end
+
 end
 
 % Define source files
 source_files = {'bdms_mex.cpp'};
 
 % Compile the MEX file
-if islinux
-    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:}, 'LIBS="$LIBS -ldl"');
-else
-    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
-end
+mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
 
 disp('Compilation completed.');
