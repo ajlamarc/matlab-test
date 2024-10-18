@@ -45,7 +45,7 @@ source_files = {'bdms_mex.cpp'};
 
 % Compile the MEX file
 if islinux
-    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:}, 'LDFLAGS="$LDFLAGS -ldl"');
+    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:}, 'LIBS="$LIBS -ldl"');
 else
     mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
 end
