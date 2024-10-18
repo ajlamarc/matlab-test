@@ -3,6 +3,8 @@
 % Get the current directory
 current_dir = pwd;
 
+islinux = isunix && ~ismac;
+
 % Define the include paths
 include_dir = fullfile(current_dir, 'bdms2-cpp-library', 'include');
 include_paths = {current_dir, ...
@@ -19,7 +21,7 @@ base_library_dir = fullfile(current_dir, 'bdms2-cpp-library', 'lib');
 
 if ismac
     library_dir = fullfile(base_library_dir, 'mac');
-elseif isunix
+elseif islinux
     library_dir = fullfile(base_library_dir, 'linux');
 elseif ispc
     library_dir = fullfile(base_library_dir, 'win');
@@ -42,6 +44,10 @@ end
 source_files = {'bdms_mex.cpp'};
 
 % Compile the MEX file
-mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
+if islinux
+    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:}, 'LDFLAGS="$LDFLAGS -ldl"');
+else
+    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
+end
 
 disp('Compilation completed.');
