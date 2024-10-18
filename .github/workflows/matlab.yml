@@ -9,17 +9,17 @@ on:
 jobs:
   matlab-test:
     name: MATLAB Tests
+    runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
-            matlab: R2022a
+            version: R2022a
           # - os: windows-latest
-          #   matlab: R2024a
+          #   version: R2024a
           # - os: macos-13
-          #   matlab: R2024a
-    runs-on: ${{matrix.os}}
+          #   version: R2024a
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
