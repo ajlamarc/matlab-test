@@ -6,7 +6,7 @@ public:
     using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
     mxArray *getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs);
-    mxArray *getArraysBySessionId(std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload);
+    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload);
 };
 
 mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs)
@@ -37,7 +37,7 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::
     return outputBytes;
 }
 
-mxArray *BDMSDataManager::getArraysBySessionId(std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload)
+mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload)
 {
     mxArray *output = mxCreateCellMatrix(dataToDownload.size(), 1);
 
@@ -46,35 +46,33 @@ mxArray *BDMSDataManager::getArraysBySessionId(std::map<SessionID, std::vector<B
     allFutures.reserve(dataToDownload.size());
 
     // Trigger getDataArraysAsync for all sessions
-    for (auto &entry : dataToDownload)
+    for (const auto &entry : dataToDownload)
     {
-        SessionID &sessionID = entry.first;
-        std::vector<BDMSDataID> &dataIDs = entry.second;
+        const SessionID &sessionID = entry.first;
+        const std::vector<BDMSDataID> &dataIDs = entry.second;
         allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 
     // Process the futures
     for (size_t i = 0; i < allFutures.size(); ++i)
     {
-        SessionID &sessionID = allFutures[i].first;
+        const SessionID &sessionID = allFutures[i].first;
         std::vector<std::future<GenericVector>> &dataFutures = allFutures[i].second;
 
         // set session ID in output structure
         mxArray *outputForSessionID = mxCreateCellMatrix(dataFutures.size() + 1, 1);
         mxSetCell(outputForSessionID, 0, mxCreateString(sessionID.c_str()));
 
-        std::vector<GenericVector> chunks(dataFutures.size());
-
         for (size_t j = 0; j < dataFutures.size(); ++j)
         {
-            chunks[j] = dataFutures[j].get();
-            size_t chunkByteSize = chunks[j].byteSize();
+            GenericVector chunk = dataFutures[j].get();
+            size_t chunkByteSize = chunk.byteSize();
 
             mwSize dims[2] = {chunkByteSize, 1};
             mxArray *outputBytes = mxCreateNumericArray(2, dims, mxUINT8_CLASS, mxREAL);
             char *outputBuffer = static_cast<char *>(mxGetData(outputBytes));
 
-            std::memcpy(outputBuffer, chunks[j].buffer(), chunkByteSize);
+            std::memcpy(outputBuffer, chunk.buffer(), chunkByteSize);
 
             mxSetCell(outputForSessionID, j + 1, outputBytes);
         }
