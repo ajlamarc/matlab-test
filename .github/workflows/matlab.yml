@@ -14,12 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
-            version: R2022a
+          # - os: ubuntu-20.04
+          #   version: R2022a
           # - os: windows-latest
           #   version: R2024a
-          # - os: macos-13
-          #   version: R2024a
+          - os: macos-13
+            version: R2024a
     steps:
       - name: Check out repository
         uses: actions/checkout@v3

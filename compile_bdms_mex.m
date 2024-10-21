@@ -1,13 +1,11 @@
 % Compile script for bdms_mex
-
-% Get the current directory
-current_dir = pwd;
+script_dir = fileparts(mfilename('fullpath'));
 
 islinux = isunix && ~ismac;
 
 % Define the include paths
-include_dir = fullfile(current_dir, 'bdms2-cpp-library', 'include');
-include_paths = {current_dir, ...
+include_dir = fullfile(script_dir, 'bdms2-cpp-library', 'include');
+include_paths = {script_dir, ...
                      include_dir, ...
                      fullfile(include_dir, 'nlohmann'), ...
                      fullfile(include_dir, 'openssl'), ...
@@ -17,7 +15,7 @@ include_paths = {current_dir, ...
 include_flags = cellfun(@(x) ['-I"' x '"'], include_paths, 'UniformOutput', false);
 
 %define library files
-base_library_dir = fullfile(current_dir, 'bdms2-cpp-library', 'lib');
+base_library_dir = fullfile(script_dir, 'lib');
 
 if ismac
     library_dir = fullfile(base_library_dir, 'mac');
@@ -46,9 +44,13 @@ else % Unix (Linux and macOS)
 end
 
 % Define source files
-source_files = {'bdms_mex.cpp'};
+source_files = {fullfile(script_dir, 'bdms_mex.cpp')};
 
 % Compile the MEX file
-mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
+if ~islinux
+    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
+else
+    mex('GCC="/usr/bin/gcc-4.9"', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
+end
 
 disp('Compilation completed.');

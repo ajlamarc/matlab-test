@@ -85,12 +85,63 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             dataIDs[i] = str;
         }
         std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
-        plhs[0] = bdms_instance->getArray(sessionID, ids);
         for (int i = 0; i < numDataIDs; i++)
         {
             mxFree(dataIDs[i]);
         }
         mxFree(dataIDs);
+
+        plhs[0] = bdms_instance->getArray(sessionID, ids);
+        return;
+    }
+
+    if (!strcmp("getArraysBySessionId", cmd))
+    {
+        if (nlhs != 1 || nrhs != 3)
+            mexErrMsgTxt("getArraysBySessionId: Unexpected arguments.");
+
+        std::map<SessionID, std::vector<BDMSDataID>> dataToDownload;
+
+        const mxArray *sessionIDsAndDataIDs = prhs[2];
+        size_t numSessions = mxGetNumberOfElements(sessionIDsAndDataIDs);
+
+        for (size_t i = 0; i < numSessions; i++)
+        {
+            mxArray *sessionIDAndDataIDs = mxGetCell(sessionIDsAndDataIDs, i);
+
+            size_t numDataIDsIncludingSessionID = mxGetNumberOfElements(sessionIDAndDataIDs);
+            size_t numDataIDs = numDataIDsIncludingSessionID - 1;
+
+            if (numDataIDs < 1)
+                mexErrMsgTxt("getArraysBySessionId: Each session must have at least one data ID.");
+
+            // get session ID
+            mxArray *sessionID = mxGetCell(sessionIDAndDataIDs, 0);
+            char *sessionIDChars = mxArrayToString(sessionID);
+
+            std::string sessionIDStr = std::string(sessionIDChars);
+            mxFree(sessionIDChars);
+
+            // get data IDs
+            char **dataIDs = (char **)mxCalloc(numDataIDs, sizeof(char *));
+            for (size_t j = 0; j < numDataIDs; j++)
+            {
+                mxArray *dataID = mxGetCell(sessionIDAndDataIDs, j + 1);
+                char *dataIDChars = mxArrayToString(dataID);
+                dataIDs[j] = dataIDChars;
+            }
+            std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
+            for (int i = 0; i < numDataIDs; i++)
+            {
+                mxFree(dataIDs[i]);
+            }
+            mxFree(dataIDs);
+
+            // add to request map
+            dataToDownload.emplace(sessionIDStr, ids);
+        }
+
+        plhs[0] = bdms_instance->getArraysBySessionId(dataToDownload);
         return;
     }
 

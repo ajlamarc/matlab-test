@@ -6,6 +6,7 @@ public:
     using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
     mxArray *getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs);
+    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload);
 };
 
 mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs)
@@ -34,4 +35,49 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::
     }
 
     return outputBytes;
+}
+
+mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload)
+{
+    mxArray *output = mxCreateCellMatrix(dataToDownload.size(), 1);
+
+    // Create a vector to store futures for all sessions
+    std::vector<std::pair<SessionID, std::vector<std::future<GenericVector>>>> allFutures;
+    allFutures.reserve(dataToDownload.size());
+
+    // Trigger getDataArraysAsync for all sessions
+    for (const auto &[sessionID, dataIDs] : dataToDownload)
+    {
+        allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
+    }
+
+    // Process the futures
+    for (size_t i = 0; i < allFutures.size(); ++i)
+    {
+        const auto &[sessionID, dataFutures] = allFutures[i];
+
+        // set session ID in output structure
+        mxArray *outputForSessionID = mxCreateCellMatrix(dataFutures.size() + 1, 1);
+        mxSetCell(outputForSessionID, 0, mxCreateString(sessionID.c_str()));
+
+        std::vector<GenericVector> chunks(dataFutures.size());
+
+        for (size_t j = 0; j < dataFutures.size(); ++j)
+        {
+            chunks[j] = dataFutures[j].get();
+            size_t chunkByteSize = chunks[j].byteSize();
+
+            mwSize dims[2] = {chunkByteSize, 1};
+            mxArray *outputBytes = mxCreateNumericArray(2, dims, mxUINT8_CLASS, mxREAL);
+            char *outputBuffer = static_cast<char *>(mxGetData(outputBytes));
+
+            std::memcpy(outputBuffer, chunks[j].buffer(), chunkByteSize);
+
+            mxSetCell(outputForSessionID, j + 1, outputBytes);
+        }
+
+        mxSetCell(output, i, outputForSessionID);
+    }
+
+    return output;
 }
