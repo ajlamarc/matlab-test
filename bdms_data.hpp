@@ -46,15 +46,18 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::ve
     allFutures.reserve(dataToDownload.size());
 
     // Trigger getDataArraysAsync for all sessions
-    for (const auto &[sessionID, dataIDs] : dataToDownload)
+    for (auto &entry : dataToDownload)
     {
+        SessionID &sessionID = entry.first;
+        std::vector<BDMSDataID> &dataIDs = entry.second;
         allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 
     // Process the futures
     for (size_t i = 0; i < allFutures.size(); ++i)
     {
-        const auto &[sessionID, dataFutures] = allFutures[i];
+        SessionID &sessionID = allFutures[i].first;
+        std::vector<std::future<GenericVector>> &dataFutures = allFutures[i].second;
 
         // set session ID in output structure
         mxArray *outputForSessionID = mxCreateCellMatrix(dataFutures.size() + 1, 1);
