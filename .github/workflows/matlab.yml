@@ -16,8 +16,8 @@ jobs:
         include:
           # - os: ubuntu-20.04
           #   version: R2022a
-          # - os: windows-latest
-          #   version: R2024a
+          - os: windows-latest
+            version: R2024a
           - os: macos-13
             version: R2024a
     steps:
