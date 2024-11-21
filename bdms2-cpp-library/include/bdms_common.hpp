@@ -22,7 +22,7 @@ using json = nlohmann::json;
 #include <fstream>
 #include <sys/stat.h>
 #include <ctime>
-// #include <mutex>
+#include <mutex>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -186,6 +186,48 @@ bool create_directories(const std::string &path)
 
     return (MKDIR(path.c_str()) == 0 || errno == EEXIST);
 }
+
+// see https://raymii.org/s/tutorials/Cpp_std_async_with_a_concurrency_limit.html
+class Semafoor {
+public:
+    explicit Semafoor(size_t count) : count(count) {}
+    size_t getCount() const { return count; };     
+    void lock() { // call before critical section
+        std::unique_lock<std::mutex> lock(mutex);
+        condition_variable.wait(lock, [this] {
+          if (count != 0) // written out for clarity, could just be return (count != 0);
+              return true;
+          else
+              return false;
+        });
+        --count;
+    }
+    void unlock() {  // call after critical section
+        std::unique_lock<std::mutex> lock(mutex);
+        ++count;
+        condition_variable.notify_one();
+    }
+
+private:
+    std::mutex mutex;
+    std::condition_variable condition_variable;
+    size_t count;
+};
+
+// RAII wrapper, make on of these in your 'work-doing' class to
+// lock the critical section. once it goes out of scope the
+// critical section is unlocked
+class CriticalSection {
+public:
+    explicit CriticalSection(Semafoor &s) : semafoor{s} {
+        semafoor.lock();
+    }
+    ~CriticalSection() {
+        semafoor.unlock();
+    }
+private:
+    Semafoor &semafoor;
+};
 
 // Class definitions
 /* TODO: DataStats and BDMSConfig classes do not utilize our custom exception handler,
@@ -740,7 +782,8 @@ private:
     std::string _baseUrl;
     std::string _userAgent;
     std::string _certificatePath;
-    std::unique_ptr<BaseBDMSExceptionHandler> _error_handler;
+    std::unique_ptr<BaseBDMSExceptionHandler> _errorHandler;
+    Semafoor _semafoor;
     httplib::Client *client();
     std::pair<bool, std::shared_ptr<httplib::Result>>
     request(const std::string &endpoint, const json &body, HTTPMethod method);
@@ -772,7 +815,7 @@ protected:
 public:
     // Primary constructor
     BaseBDMSDataManager(BDMSProvidedConfig provided, std::unique_ptr<BaseBDMSExceptionHandler> error_handler)
-        : _error_handler(std::move(error_handler))
+        : _errorHandler(std::move(error_handler)), _semafoor(std::thread::hardware_concurrency() * 2)
     {
         BDMSResolvedConfig resolved = BDMSConfig::getHostTokenProtocolCertificateAgentValues(provided);
         _apiKey = resolved.apiKey;
@@ -826,13 +869,17 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTP
 
         // Make the request
         std::shared_ptr<httplib::Result> resPtr;
-        if (method == POST) {
-            resPtr = std::make_shared<httplib::Result>(
-                cl->Post(endpoint, headers, body.dump(), "application/json"));
-        } else if (method == HEAD) {
-            resPtr = std::make_shared<httplib::Result>(cl->Head(endpoint, headers));
-        } else if (method == GET) {
-            resPtr = std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
+        {
+            // Enforce concurrency limit on HTTP requests
+            CriticalSection cs(_semafoor);
+            if (method == POST) {
+                resPtr = std::make_shared<httplib::Result>(
+                    cl->Post(endpoint, headers, body.dump(), "application/json"));
+            } else if (method == HEAD) {
+                resPtr = std::make_shared<httplib::Result>(cl->Head(endpoint, headers));
+            } else if (method == GET) {
+                resPtr = std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
+            }
         }
 
         // Handle transport layer errors
@@ -843,7 +890,7 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTP
                     << "\nError code: " << httplib::to_string(resPtr ? resPtr->error() : httplib::Error::Unknown)
                     << "\nEndpoint: " << endpoint
                     << "\nRequest body: " << body.dump(2);
-                _error_handler->raiseError("HTTP Request Failed", err.str());
+                _errorHandler->raiseError("HTTP Request Failed", err.str());
                 return std::make_pair(false, resPtr);
             }
             continue;
@@ -862,7 +909,7 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTP
                 << "\nEndpoint: " << endpoint
                 << "\nPlease verify your API key and access permissions."
                 << "\nTo set a new API key: Data -> BlueAcc -> Reset API key";
-            _error_handler->raiseError("Authentication Error", err.str());
+            _errorHandler->raiseError("Authentication Error", err.str());
             return std::make_pair(false, resPtr);
         }
 
@@ -876,7 +923,7 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTP
                     << "\nEndpoint: " << endpoint
                     << "\nRequest body: " << body.dump(2)
                     << "\nResponse body: " << jsonResponse.dump(2);
-                _error_handler->raiseError("Request Failed After Retries", err.str());
+                _errorHandler->raiseError("Request Failed After Retries", err.str());
             }
             continue;
         }
@@ -887,7 +934,7 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTP
             << "\nEndpoint: " << endpoint
             << "\nRequest body: " << body.dump(2)
             << "\nResponse body: " << jsonResponse.dump(2);
-        _error_handler->raiseError("Request Failed", err.str());
+        _errorHandler->raiseError("Request Failed", err.str());
         return std::make_pair(false, resPtr);
     }
 
@@ -1010,7 +1057,7 @@ void BaseBDMSDataManager::getRangeValues(const BDMSDataID &identifier,
     }
     else
     {
-        _error_handler->raiseError("Unexpected BDMS data type in getRangeValues", type + " for identifier " + identifier + ". Please contact the BDMS team.");
+        _errorHandler->raiseError("Unexpected BDMS data type in getRangeValues", type + " for identifier " + identifier + ". Please contact the BDMS team.");
     }
 }
 
@@ -1098,7 +1145,7 @@ void BaseBDMSDataManager::getConstantValues(const BDMSDataID &identifier,
     }
     else
     {
-        _error_handler->raiseError("Unexpected BDMS data type in getConstantValues", type + " for identifier " + identifier + ". Please contact the BDMS team.");
+        _errorHandler->raiseError("Unexpected BDMS data type in getConstantValues", type + " for identifier " + identifier + ". Please contact the BDMS team.");
     }
 }
 
@@ -1144,7 +1191,7 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 } else if (type == "double") {
                     assignBufferAndVector<double>(vec, buffer, size);
                 } else {
-                    _error_handler->raiseError("Unexpected BDMS data type in getData", type + "for Session ID " + sessionID + " and data ID " + bdmsDataID + " is not one of the supported types.");
+                    _errorHandler->raiseError("Unexpected BDMS data type in getData", type + "for Session ID " + sessionID + " and data ID " + bdmsDataID + " is not one of the supported types.");
                     return vec; // abort further processing
                 }
 
@@ -1169,9 +1216,9 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
 
                     if (!success) {
                         if (res && res->error() == httplib::Error::Success) {
-                            _error_handler->raiseError("Request for getDataAsync failed", "with status code " + std::to_string((*res)->status) + " for session ID " + sessionID + " and data ID " + bdmsDataID);
+                            _errorHandler->raiseError("Request for getDataAsync failed", "with status code " + std::to_string((*res)->status) + " for session ID " + sessionID + " and data ID " + bdmsDataID);
                         } else {
-                            _error_handler->raiseError("Request for getDataAsync failed", "Reason unknown. Please contact the BDMS team.");
+                            _errorHandler->raiseError("Request for getDataAsync failed", "Reason unknown. Please contact the BDMS team.");
                         }
                     }
 
@@ -1186,7 +1233,7 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                                 return true;
                             })) {
                         
-                        _error_handler->raiseError("Decompression failed", "Decompression failed for session ID " + sessionID + " and data ID " + bdmsDataID + ". Please contact the BDMS team.");
+                        _errorHandler->raiseError("Decompression failed", "Decompression failed for session ID " + sessionID + " and data ID " + bdmsDataID + ". Please contact the BDMS team.");
                     }
                 }
                 return vec; }));
