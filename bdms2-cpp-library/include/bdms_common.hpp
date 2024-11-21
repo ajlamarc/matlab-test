@@ -1141,7 +1141,7 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                     std::tie(success, res) = get(endpoint);
 
                     if (!success) {
-                        if (res) {
+                        if (res && res->error() == httplib::Error::Success) {
                             _error_handler->raiseError("Request for getDataAsync failed", "with status code " + std::to_string((*res)->status) + " for session ID " + sessionID + " and data ID " + bdmsDataID);
                         } else {
                             _error_handler->raiseError("Request for getDataAsync failed", "Reason unknown. Please contact the BDMS team.");
