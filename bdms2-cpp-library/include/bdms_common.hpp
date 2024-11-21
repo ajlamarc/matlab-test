@@ -188,6 +188,41 @@ bool create_directories(const std::string &path)
 }
 
 // Class definitions
+/* TODO: DataStats and BDMSConfig classes do not utilize our custom exception handler,
+only BaseBDMSDataManager. We want these classes to remain public separate from BaseBDMSDataManager,
+so functions which throw exceptions should accept an additional parameter of type BaseBDMSExceptionHandler.
+Example: 
+
+getRangeValues(const BDMSDataID &bdmsDataID, 
+                             DataStats stats,
+                             char *buffer, 
+                             std::string type,
+                             BDMSExceptionsBase* error_handler = nullptr) {
+    if (error_occurred) {
+        if (error_handler) {
+            error_handler->raiseError("getRangeValues error", "Error message");
+        } else {
+            // default error handling
+        }
+    }
+ */
+
+class BaseBDMSExceptionHandler
+{
+public:
+    virtual ~BaseBDMSExceptionHandler() = default;
+    virtual void raiseError(const std::string& title, const std::string& message) = 0;
+};
+
+class DefaultBDMSExceptionHandler : public BaseBDMSExceptionHandler
+{
+public:
+    void raiseError(const std::string& title, const std::string& message) override
+    {
+        throw std::runtime_error(title + ": " + message);
+    }
+};
+
 class DataStats
 {
 public:
@@ -439,222 +474,6 @@ const T DataStats::getMaxValue() const
 
     std::string max_value_hex = this->max_value_hex;
     return littleEndianHexToDecimal<T>(max_value_hex);
-}
-
-// Common, static operations on BDMS data.
-class BDMSDataFunctions
-{
-public:
-    static void getRangeValues(const BDMSDataID &bdmsDataID, DataStats stats,
-                               char *buffer, std::string type);
-    static void getConstantValues(const BDMSDataID &bdmsDataID, char *buffer,
-                                  size_t size, std::string type);
-    template <typename T>
-    static void fillBufferWithSequence(T *buffer, T min_value, T max_value,
-                                       T step_value);
-    template <typename T>
-    static void assignBufferAndVector(GenericVector &vec, char *&buffer,
-                                      size_t size);
-};
-
-template <typename T>
-void BDMSDataFunctions::assignBufferAndVector(GenericVector &vec, char *&buffer, size_t size)
-{
-    vec.assign<T>(size);
-    buffer = vec.buffer();
-}
-
-template <typename T>
-void BDMSDataFunctions::fillBufferWithSequence(T *buffer, T min_value,
-                                               T max_value, T step_value)
-{
-    bool is_forward_stepping = step_value > 0;
-
-    if (is_forward_stepping)
-    {
-        size_t index = 0;
-        for (T value = min_value; value <= max_value; value += step_value)
-        {
-            buffer[index] = value;
-            index++;
-        }
-    }
-    else
-    {
-        size_t index = 0;
-        for (T value = max_value; value >= min_value; value += step_value)
-        {
-            buffer[index] = value;
-            index++;
-        }
-    }
-}
-
-void BDMSDataFunctions::getRangeValues(const BDMSDataID &identifier,
-                                       DataStats stats, char *buffer,
-                                       std::string type)
-{
-    std::vector<std::string> identifierParts =
-        DataStats::getIdentifierParts(identifier);
-    std::string step_value_dec = identifierParts[4];
-
-    if (type == "char" || type == "byte" || type == "int8" || type == "uint8")
-    {
-        uint8_t *typed_buffer = reinterpret_cast<uint8_t *>(buffer);
-        fillBufferWithSequence<uint8_t>(
-            typed_buffer, stats.getMinValue<uint8_t>(),
-            stats.getMaxValue<uint8_t>(),
-            static_cast<uint8_t>(std::stoul(step_value_dec)));
-    }
-    else if (type == "uint16")
-    {
-        uint16_t *typed_buffer = reinterpret_cast<uint16_t *>(buffer);
-        fillBufferWithSequence<uint16_t>(
-            typed_buffer, stats.getMinValue<uint16_t>(),
-            stats.getMaxValue<uint16_t>(),
-            static_cast<uint16_t>(std::stoul(step_value_dec)));
-    }
-    else if (type == "int16")
-    {
-        int16_t *typed_buffer = reinterpret_cast<int16_t *>(buffer);
-        fillBufferWithSequence<int16_t>(
-            typed_buffer, stats.getMinValue<int16_t>(),
-            stats.getMaxValue<int16_t>(),
-            static_cast<int16_t>(std::stoi(step_value_dec)));
-    }
-    else if (type == "uint32")
-    {
-        uint32_t *typed_buffer = reinterpret_cast<uint32_t *>(buffer);
-        fillBufferWithSequence<uint32_t>(
-            typed_buffer, stats.getMinValue<uint32_t>(),
-            stats.getMaxValue<uint32_t>(), std::stoul(step_value_dec));
-    }
-    else if (type == "int32")
-    {
-        int32_t *typed_buffer = reinterpret_cast<int32_t *>(buffer);
-        fillBufferWithSequence<int32_t>(
-            typed_buffer, stats.getMinValue<int32_t>(),
-            stats.getMaxValue<int32_t>(),
-            static_cast<uint32_t>(std::stoi(step_value_dec)));
-    }
-    else if (type == "uint64")
-    {
-        uint64_t *typed_buffer = reinterpret_cast<uint64_t *>(buffer);
-        fillBufferWithSequence<uint64_t>(
-            typed_buffer, stats.getMinValue<uint64_t>(),
-            stats.getMaxValue<uint64_t>(), std::stoull(step_value_dec));
-    }
-    else if (type == "int64")
-    {
-        int64_t *typed_buffer = reinterpret_cast<int64_t *>(buffer);
-        fillBufferWithSequence<int64_t>(
-            typed_buffer, stats.getMinValue<int64_t>(),
-            stats.getMaxValue<int64_t>(), std::stoll(step_value_dec));
-    }
-    else
-    {
-        // TODO: catch error and raise back to MATLAB
-        // auto modalBody =
-        //     "Unexpected BDMS data type in getStepsValues: " + type +
-        //     "for identifier " + identifier;
-        // MessageBox(NULL, TEXT(modalBody.c_str()), TEXT("getStepsValues error"),
-        //            MB_ICONERROR);
-        throw std::runtime_error("Unexpected data identifier.");
-    }
-}
-
-void BDMSDataFunctions::getConstantValues(const BDMSDataID &identifier,
-                                          char *buffer, size_t size,
-                                          std::string type)
-{
-    std::vector<std::string> identifierParts =
-        DataStats::getIdentifierParts(identifier);
-    std::string constant_value_hex = identifierParts[4];
-
-    if (type == "bool" || type == "char" || type == "byte" || type == "int8" ||
-        type == "uint8")
-    {
-        uint8_t *typed_buffer = reinterpret_cast<uint8_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<uint8_t>(constant_value_hex));
-    }
-    else if (type == "uint16")
-    {
-        uint16_t *typed_buffer = reinterpret_cast<uint16_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<uint16_t>(constant_value_hex));
-    }
-    else if (type == "int16")
-    {
-        int16_t *typed_buffer = reinterpret_cast<int16_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<int16_t>(constant_value_hex));
-    }
-    else if (type == "uint32")
-    {
-        uint32_t *typed_buffer = reinterpret_cast<uint32_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<uint32_t>(constant_value_hex));
-    }
-    else if (type == "int32")
-    {
-        int32_t *typed_buffer = reinterpret_cast<int32_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<int32_t>(constant_value_hex));
-    }
-    else if (type == "uint64")
-    {
-        uint64_t *typed_buffer = reinterpret_cast<uint64_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<uint64_t>(constant_value_hex));
-    }
-    else if (type == "int64")
-    {
-        int64_t *typed_buffer = reinterpret_cast<int64_t *>(buffer);
-        std::fill_n(
-            typed_buffer, size,
-            DataStats::littleEndianHexToDecimal<int64_t>(constant_value_hex));
-    }
-    // The bitwise opperations in littleEndianHexToDecimal don't work on
-    // floating point numbers. The "union" trick gets around that problem.
-    else if (type == "float")
-    {
-        float *typed_buffer = reinterpret_cast<float *>(buffer);
-        union
-        {
-            float f;
-            uint32_t i;
-        } u;
-        u.i = DataStats::littleEndianHexToDecimal<uint32_t>(constant_value_hex);
-        std::fill_n(typed_buffer, size, u.f);
-    }
-    else if (type == "double")
-    {
-        double *typed_buffer = reinterpret_cast<double *>(buffer);
-        union
-        {
-            double f;
-            uint64_t i;
-        } u;
-        u.i = DataStats::littleEndianHexToDecimal<uint64_t>(constant_value_hex);
-        std::fill_n(typed_buffer, size, u.f);
-    }
-    else
-    {
-        // TODO: catch error and raise back to MATLAB
-        // auto modalBody =
-        //     "Unexpected BDMS data type in getStepsValues: " + type +
-        //     "for identifier " + identifier;
-        // MessageBox(NULL, TEXT(modalBody.c_str()), TEXT("getStepsValues error"),
-        //            MB_ICONERROR);
-        throw std::runtime_error("Unexpected data identifier.");
-    }
 }
 
 // Global log file stream
@@ -921,6 +740,7 @@ private:
     std::string _baseUrl;
     std::string _userAgent;
     std::string _certificatePath;
+    std::unique_ptr<BaseBDMSExceptionHandler> _error_handler;
     httplib::Client *client();
     std::pair<bool, std::shared_ptr<httplib::Result>>
     request(const std::string &endpoint, const json &body, HTTPMethod method);
@@ -931,6 +751,17 @@ private:
     std::pair<bool, std::shared_ptr<httplib::Result>>
     get(const std::string &endpoint);
 
+    static void getRangeValues(const BDMSDataID &bdmsDataID, DataStats stats,
+                               char *buffer, std::string type);
+    static void getConstantValues(const BDMSDataID &bdmsDataID, char *buffer,
+                                  size_t size, std::string type);
+    template <typename T>
+    static void fillBufferWithSequence(T *buffer, T min_value, T max_value,
+                                       T step_value);
+    template <typename T>
+    static void assignBufferAndVector(GenericVector &vec, char *&buffer,
+                                      size_t size);
+
 protected:
     std::vector<std::future<GenericVector>>
     getDataArraysAsync(const std::string &sessionID,
@@ -939,7 +770,9 @@ protected:
                              const BDMSDataID &bdmsDataID);
 
 public:
-    BaseBDMSDataManager(BDMSProvidedConfig provided)
+    // Primary constructor
+    BaseBDMSDataManager(BDMSProvidedConfig provided, std::unique_ptr<BaseBDMSExceptionHandler> error_handler)
+        : _error_handler(std::move(error_handler))
     {
         BDMSResolvedConfig resolved = BDMSConfig::getHostTokenProtocolCertificateAgentValues(provided);
         _apiKey = resolved.apiKey;
@@ -947,7 +780,18 @@ public:
         _userAgent = resolved.userAgent;
         _certificatePath = resolved.certificatePath;
     }
-    BaseBDMSDataManager() : BaseBDMSDataManager(BDMSProvidedConfig()) {}
+
+    // Delegating constructors
+    BaseBDMSDataManager(BDMSProvidedConfig provided) 
+        : BaseBDMSDataManager(provided, httplib::detail::make_unique<DefaultBDMSExceptionHandler>()) {}
+    BaseBDMSDataManager() 
+        : BaseBDMSDataManager(BDMSProvidedConfig(), httplib::detail::make_unique<DefaultBDMSExceptionHandler>()) {}
+    // Delete copy operations
+    BaseBDMSDataManager(const BaseBDMSDataManager&) = delete;
+    BaseBDMSDataManager& operator=(const BaseBDMSDataManager&) = delete;
+    // Allow move operations
+    BaseBDMSDataManager(BaseBDMSDataManager&&) = default;
+    BaseBDMSDataManager& operator=(BaseBDMSDataManager&&) = default;
 };
 
 httplib::Client *BaseBDMSDataManager::client()
@@ -1042,6 +886,195 @@ BaseBDMSDataManager::get(const std::string &endpoint)
     return request(endpoint, json({}), GET);
 }
 
+
+template <typename T>
+void BaseBDMSDataManager::assignBufferAndVector(GenericVector &vec, char *&buffer, size_t size)
+{
+    vec.assign<T>(size);
+    buffer = vec.buffer();
+}
+
+template <typename T>
+void BaseBDMSDataManager::fillBufferWithSequence(T *buffer, T min_value,
+                                               T max_value, T step_value)
+{
+    bool is_forward_stepping = step_value > 0;
+
+    if (is_forward_stepping)
+    {
+        size_t index = 0;
+        for (T value = min_value; value <= max_value; value += step_value)
+        {
+            buffer[index] = value;
+            index++;
+        }
+    }
+    else
+    {
+        size_t index = 0;
+        for (T value = max_value; value >= min_value; value += step_value)
+        {
+            buffer[index] = value;
+            index++;
+        }
+    }
+}
+
+void BaseBDMSDataManager::getRangeValues(const BDMSDataID &identifier,
+                                       DataStats stats, char *buffer,
+                                       std::string type)
+{
+    std::vector<std::string> identifierParts =
+        DataStats::getIdentifierParts(identifier);
+    std::string step_value_dec = identifierParts[4];
+
+    if (type == "char" || type == "byte" || type == "int8" || type == "uint8")
+    {
+        uint8_t *typed_buffer = reinterpret_cast<uint8_t *>(buffer);
+        fillBufferWithSequence<uint8_t>(
+            typed_buffer, stats.getMinValue<uint8_t>(),
+            stats.getMaxValue<uint8_t>(),
+            static_cast<uint8_t>(std::stoul(step_value_dec)));
+    }
+    else if (type == "uint16")
+    {
+        uint16_t *typed_buffer = reinterpret_cast<uint16_t *>(buffer);
+        fillBufferWithSequence<uint16_t>(
+            typed_buffer, stats.getMinValue<uint16_t>(),
+            stats.getMaxValue<uint16_t>(),
+            static_cast<uint16_t>(std::stoul(step_value_dec)));
+    }
+    else if (type == "int16")
+    {
+        int16_t *typed_buffer = reinterpret_cast<int16_t *>(buffer);
+        fillBufferWithSequence<int16_t>(
+            typed_buffer, stats.getMinValue<int16_t>(),
+            stats.getMaxValue<int16_t>(),
+            static_cast<int16_t>(std::stoi(step_value_dec)));
+    }
+    else if (type == "uint32")
+    {
+        uint32_t *typed_buffer = reinterpret_cast<uint32_t *>(buffer);
+        fillBufferWithSequence<uint32_t>(
+            typed_buffer, stats.getMinValue<uint32_t>(),
+            stats.getMaxValue<uint32_t>(), std::stoul(step_value_dec));
+    }
+    else if (type == "int32")
+    {
+        int32_t *typed_buffer = reinterpret_cast<int32_t *>(buffer);
+        fillBufferWithSequence<int32_t>(
+            typed_buffer, stats.getMinValue<int32_t>(),
+            stats.getMaxValue<int32_t>(),
+            static_cast<uint32_t>(std::stoi(step_value_dec)));
+    }
+    else if (type == "uint64")
+    {
+        uint64_t *typed_buffer = reinterpret_cast<uint64_t *>(buffer);
+        fillBufferWithSequence<uint64_t>(
+            typed_buffer, stats.getMinValue<uint64_t>(),
+            stats.getMaxValue<uint64_t>(), std::stoull(step_value_dec));
+    }
+    else if (type == "int64")
+    {
+        int64_t *typed_buffer = reinterpret_cast<int64_t *>(buffer);
+        fillBufferWithSequence<int64_t>(
+            typed_buffer, stats.getMinValue<int64_t>(),
+            stats.getMaxValue<int64_t>(), std::stoll(step_value_dec));
+    }
+    else
+    {
+        _error_handler->raiseError("Unexpected BDMS data type in getRangeValues", type + " for identifier " + identifier + ". Please contact the BDMS team.")
+    }
+}
+
+void BaseBDMSDataManager::getConstantValues(const BDMSDataID &identifier,
+                                          char *buffer, size_t size,
+                                          std::string type)
+{
+    std::vector<std::string> identifierParts =
+        DataStats::getIdentifierParts(identifier);
+    std::string constant_value_hex = identifierParts[4];
+
+    if (type == "bool" || type == "char" || type == "byte" || type == "int8" ||
+        type == "uint8")
+    {
+        uint8_t *typed_buffer = reinterpret_cast<uint8_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<uint8_t>(constant_value_hex));
+    }
+    else if (type == "uint16")
+    {
+        uint16_t *typed_buffer = reinterpret_cast<uint16_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<uint16_t>(constant_value_hex));
+    }
+    else if (type == "int16")
+    {
+        int16_t *typed_buffer = reinterpret_cast<int16_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<int16_t>(constant_value_hex));
+    }
+    else if (type == "uint32")
+    {
+        uint32_t *typed_buffer = reinterpret_cast<uint32_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<uint32_t>(constant_value_hex));
+    }
+    else if (type == "int32")
+    {
+        int32_t *typed_buffer = reinterpret_cast<int32_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<int32_t>(constant_value_hex));
+    }
+    else if (type == "uint64")
+    {
+        uint64_t *typed_buffer = reinterpret_cast<uint64_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<uint64_t>(constant_value_hex));
+    }
+    else if (type == "int64")
+    {
+        int64_t *typed_buffer = reinterpret_cast<int64_t *>(buffer);
+        std::fill_n(
+            typed_buffer, size,
+            DataStats::littleEndianHexToDecimal<int64_t>(constant_value_hex));
+    }
+    // The bitwise opperations in littleEndianHexToDecimal don't work on
+    // floating point numbers. The "union" trick gets around that problem.
+    else if (type == "float")
+    {
+        float *typed_buffer = reinterpret_cast<float *>(buffer);
+        union
+        {
+            float f;
+            uint32_t i;
+        } u;
+        u.i = DataStats::littleEndianHexToDecimal<uint32_t>(constant_value_hex);
+        std::fill_n(typed_buffer, size, u.f);
+    }
+    else if (type == "double")
+    {
+        double *typed_buffer = reinterpret_cast<double *>(buffer);
+        union
+        {
+            double f;
+            uint64_t i;
+        } u;
+        u.i = DataStats::littleEndianHexToDecimal<uint64_t>(constant_value_hex);
+        std::fill_n(typed_buffer, size, u.f);
+    }
+    else
+    {
+        _error_handler->raiseError("Unexpected BDMS data type in getConstantValues", type + " for identifier " + identifier + ". Please contact the BDMS team.")
+    }
+}
+
 /* This function does not care about multidimensional data.
 It is the responsibility of the caller to reshape resulting chunks. */
 std::vector<std::future<GenericVector>>
@@ -1066,31 +1099,25 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                 // the returned data.
                 if (type == "bool" || type == "char" || type == "byte" ||
                     type == "int8" || type == "uint8") {
-                    BDMSDataFunctions::assignBufferAndVector<uint8_t>(vec, buffer, size);
+                    assignBufferAndVector<uint8_t>(vec, buffer, size);
                 } else if (type == "uint16") {
-                    BDMSDataFunctions::assignBufferAndVector<uint16_t>(vec, buffer, size);
+                    assignBufferAndVector<uint16_t>(vec, buffer, size);
                 } else if (type == "int16") {
-                    BDMSDataFunctions::assignBufferAndVector<int16_t>(vec, buffer, size);
+                    assignBufferAndVector<int16_t>(vec, buffer, size);
                 } else if (type == "uint32") {
-                    BDMSDataFunctions::assignBufferAndVector<uint32_t>(vec, buffer, size);
+                    assignBufferAndVector<uint32_t>(vec, buffer, size);
                 } else if (type == "int32") {
-                    BDMSDataFunctions::assignBufferAndVector<int32_t>(vec, buffer, size);
+                    assignBufferAndVector<int32_t>(vec, buffer, size);
                 } else if (type == "uint64") {
-                    BDMSDataFunctions::assignBufferAndVector<uint64_t>(vec, buffer, size);
+                    assignBufferAndVector<uint64_t>(vec, buffer, size);
                 } else if (type == "int64") {
-                    BDMSDataFunctions::assignBufferAndVector<int64_t>(vec, buffer, size);
+                    assignBufferAndVector<int64_t>(vec, buffer, size);
                 } else if (type == "float") {
-                    BDMSDataFunctions::assignBufferAndVector<float>(vec, buffer, size);
+                    assignBufferAndVector<float>(vec, buffer, size);
                 } else if (type == "double") {
-                    BDMSDataFunctions::assignBufferAndVector<double>(vec, buffer, size);
+                    assignBufferAndVector<double>(vec, buffer, size);
                 } else {
-                    throw std::runtime_error("Unexpected BDMS data type in getData");
-                    // TODO: surface error
-                    // auto modalBody =
-                    //     "Unexpected BDMS data type in getData: " + type +
-                    //     "for Session ID " + sessionID + "and data ID " + bdmsDataID;
-                    // MessageBox(NULL, TEXT(modalBody.c_str()), TEXT("getData error"),
-                    //            MB_ICONERROR);
+                    _error_handler->raiseError("Unexpected BDMS data type in getData", type + "for Session ID " + sessionID + " and data ID " + bdmsDataID + " is not one of the supported types.");
                     return vec; // abort further processing
                 }
 
@@ -1101,10 +1128,10 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
 
                 if (id_type_base == "special" &&
                     (id_type_special == "steps" || id_type_special == "range")) {
-                    BDMSDataFunctions::getRangeValues(bdmsDataID, stats, buffer, type);
+                    getRangeValues(bdmsDataID, stats, buffer, type);
                 } else if (id_type_base == "special" &&
                         id_type_special == "constant") {
-                    BDMSDataFunctions::getConstantValues(bdmsDataID, buffer, size, type);
+                    getConstantValues(bdmsDataID, buffer, size, type);
                 } else {
                     // if data can't be generated, get from BDMS
                     std::string endpoint =
@@ -1114,10 +1141,11 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                     std::tie(success, res) = get(endpoint);
 
                     if (!success) {
-                        // TODO: surface error to MATLAB
-                        // MessageBox(NULL, TEXT("Request for getDataAsync failed."),
-                        //            TEXT("getDataAsync error"), MB_ICONERROR);
-                        throw std::runtime_error("getDataAsync error");
+                        if (resPtr) {
+                            _error_handler->raiseError("Request for getDataAsync failed", "with status code " + std::to_string((*resPtr)->status) + " for session ID " + sessionID + " and data ID " + bdmsDataID);
+                        } else {
+                            _error_handler->raiseError("Request for getDataAsync failed", "Reason unknown. Please contact the BDMS team.");
+                        }
                     }
 
                     httplib::detail::gzip_decompressor comp;
@@ -1130,10 +1158,8 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                                 offset += decompLength;
                                 return true;
                             })) {
-                        // TODO: surface error to MATLAB
-                        // MessageBox(NULL, TEXT("Decompression failed."),
-                        //            TEXT("getDataAsync error"), MB_ICONERROR);
-                        throw std::runtime_error("Decompression failed.");
+                        
+                        _error_handler->raiseError("Decompression failed", "Decompression failed for session ID " + sessionID + " and data ID " + bdmsDataID + ". Please contact the BDMS team.");
                     }
                 }
                 return vec; }));
