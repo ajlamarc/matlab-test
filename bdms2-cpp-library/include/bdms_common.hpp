@@ -808,6 +808,41 @@ httplib::Client *BaseBDMSDataManager::client()
     return _client.get();
 }
 
+std::string httplibErrorToString(httplib::Error error) {
+    switch (error) {
+    case httplib::Error::Success:
+        return "Success";
+    case httplib::Error::Unknown:
+        return "Unknown error";
+    case httplib::Error::Connection:
+        return "Connection error";
+    case httplib::Error::BindIPAddress:
+        return "Bind IP Address error";
+    case httplib::Error::Read:
+        return "Read error";
+    case httplib::Error::Write:
+        return "Write error";
+    case httplib::Error::ExceedRedirectCount:
+        return "Exceeded redirect count";
+    case httplib::Error::Canceled:
+        return "Request canceled";
+    case httplib::Error::SSLConnection:
+        return "SSL connection error";
+    case httplib::Error::SSLLoadingCerts:
+        return "SSL loading certificates error";
+    case httplib::Error::SSLServerVerification:
+        return "SSL server verification error";
+    case httplib::Error::UnsupportedMultipartBoundaryChars:
+        return "Unsupported multipart boundary characters";
+    case httplib::Error::Compression:
+        return "Compression error";
+    case httplib::Error::ConnectionTimeout:
+        return "Connection timeout";
+    default:
+        return "Unknown httplib error";
+    }
+}
+
 std::pair<bool, std::shared_ptr<httplib::Result>>
 BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
                              HTTPMethod method)
@@ -847,6 +882,12 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
         {
             if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
             {
+                _error_handler->raiseError(std::to_string((*resPtr)->status) + " HTTP error",
+                                "Your request was rejected by BDMS. Please "
+                                "verify that your API key is up-to-date, and "
+                                "you have access to the requested campaign.  "
+                                "To set a new API key, at the top of WinPlot "
+                                "click Data -> BlueAcc -> Reset API key.");
                 return std::make_pair(false, resPtr);
             }
             else if ((*resPtr)->status == 200)
@@ -855,16 +896,40 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
             }
             else if (retryStatusCodes.find((*resPtr)->status) == retryStatusCodes.end())
             {
+                // If response is not successful but not in retry
+                // conditions, break the loop and return
+                const json jsonResponse = json::parse((*resPtr)->body);
+                const std::string modalBody = jsonResponse.dump(2);
+                _error_handler->raiseError("BDMS Request failure", modalBody);
                 return std::make_pair(false, resPtr);
             }
         }
 
+        // failed 3 retries
         if (retry == 3)
         {
+            if (resPtr->error() != httplib::Error::Success) {
+                const std::string modalBody =
+                    "HTTP request failed at transport layer with error code: " +
+                    httplibErrorToString(resPtr->error()) +
+                    " for endpoint: " + endpoint + "and body: " + body.dump(2) +
+                    "Please contact the BDMS team.";
+                _error_handler->raiseError("HTTP Request Failure", modalBody);
+            } else {
+                /* Assume that a 429 response is a fast writes rate limit,
+                in which case we do not want to disturb the user and block
+                execution with a popup. */
+                if ((*resPtr)->status != 429) {
+                    const json jsonResponse = json::parse((*resPtr)->body);
+                    const std::string modalBody = jsonResponse.dump(2);
+                    _error_handler->raiseError("BDMS Request Max Retries", modalBody);
+                }
+            }
             return std::make_pair(false, resPtr);
         }
     }
 
+    // this will not be hit, added to suppress compiler complaint
     return std::make_pair(false, nullptr);
 }
 
