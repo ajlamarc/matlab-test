@@ -842,91 +842,87 @@ std::string httplibErrorToString(httplib::Error error) {
         return "Unknown httplib error";
     }
 }
-
 std::pair<bool, std::shared_ptr<httplib::Result>>
-BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
-                             HTTPMethod method)
+BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTPMethod method)
 {
-    httplib::Headers headers = {
-        {"User-Agent", _userAgent}};
-    if (method == POST)
-    {
+    httplib::Headers headers = {{"User-Agent", _userAgent}};
+    if (method == POST) {
         headers.emplace("Accept", "application/json");
     }
+
     auto cl = client();
     std::set<int> retryStatusCodes = {429, 500, 502, 503, 504};
-    for (int retry = 0; retry < 4; ++retry)
-    {
-        if (retry > 0)
-        {
+    
+    for (int retry = 0; retry < 4; ++retry) {
+        if (retry > 0) {
             std::this_thread::sleep_for(std::chrono::seconds(retry - 1));
         }
+
+        // Make the request
         std::shared_ptr<httplib::Result> resPtr;
-        if (method == POST)
-        {
+        if (method == POST) {
             resPtr = std::make_shared<httplib::Result>(
                 cl->Post(endpoint, headers, body.dump(), "application/json"));
-        }
-        else if (method == HEAD)
-        {
-            resPtr =
-                std::make_shared<httplib::Result>(cl->Head(endpoint, headers));
-        }
-        else if (method == GET)
-        {
-            resPtr =
-                std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
+        } else if (method == HEAD) {
+            resPtr = std::make_shared<httplib::Result>(cl->Head(endpoint, headers));
+        } else if (method == GET) {
+            resPtr = std::make_shared<httplib::Result>(cl->Get(endpoint, headers));
         }
 
-        if (resPtr && resPtr->error() == httplib::Error::Success)
-        {
-            if ((*resPtr)->status == 403 || (*resPtr)->status == 401)
-            {
-                _error_handler->raiseError(std::to_string((*resPtr)->status) + " HTTP error",
-                                "Your request was rejected by BDMS. Please "
-                                "verify that your API key is up-to-date, and "
-                                "you have access to the requested campaign.  "
-                                "To set a new API key, at the top of WinPlot "
-                                "click Data -> BlueAcc -> Reset API key.");
+        // Handle transport layer errors
+        if (!resPtr || resPtr->error() != httplib::Error::Success) {
+            if (retry == 3) {
+                std::ostringstream err;
+                err << "Transport layer error"
+                    << "\nError code: " << httplibErrorToString(resPtr ? resPtr->error() : httplib::Error::Unknown)
+                    << "\nEndpoint: " << endpoint
+                    << "\nRequest body: " << body.dump(2);
+                _error_handler->raiseError("HTTP Request Failed", err.str());
                 return std::make_pair(false, resPtr);
             }
-            else if ((*resPtr)->status == 200)
-            {
-                return std::make_pair(true, resPtr);
-            }
-            else if (retryStatusCodes.find((*resPtr)->status) == retryStatusCodes.end())
-            {
-                // If response is not successful but not in retry
-                // conditions, break the loop and return
-                const json jsonResponse = json::parse((*resPtr)->body);
-                const std::string modalBody = jsonResponse.dump(2);
-                _error_handler->raiseError("BDMS Request failure", modalBody);
-                return std::make_pair(false, resPtr);
-            }
+            continue;
         }
 
-        // failed 3 retries
-        if (retry == 3)
-        {
-            if (resPtr->error() != httplib::Error::Success) {
-                const std::string modalBody =
-                    "HTTP request failed at transport layer with error code: " +
-                    httplibErrorToString(resPtr->error()) +
-                    " for endpoint: " + endpoint + "and body: " + body.dump(2) +
-                    "Please contact the BDMS team.";
-                _error_handler->raiseError("HTTP Request Failure", modalBody);
-            } else {
-                /* Assume that a 429 response is a fast writes rate limit,
-                in which case we do not want to disturb the user and block
-                execution with a popup. */
-                if ((*resPtr)->status != 429) {
-                    const json jsonResponse = json::parse((*resPtr)->body);
-                    const std::string modalBody = jsonResponse.dump(2);
-                    _error_handler->raiseError("BDMS Request Max Retries", modalBody);
-                }
-            }
+        // TODO: this doesn't extend to other endpoints that would return,
+        // e.g. a 201 
+        if ((*resPtr)->status == 200) {
+            return std::make_pair(true, resPtr);
+        }
+
+        // Handle authentication errors
+        if ((*resPtr)->status == 401 || (*resPtr)->status == 403) {
+            std::ostringstream err;
+            err << "Authentication failed (HTTP " << (*resPtr)->status << ")"
+                << "\nEndpoint: " << endpoint
+                << "\nPlease verify your API key and access permissions."
+                << "\nTo set a new API key: Data -> BlueAcc -> Reset API key";
+            _error_handler->raiseError("Authentication Error", err.str());
             return std::make_pair(false, resPtr);
         }
+
+        const json jsonResponse = json::parse((*resPtr)->body);
+
+        // Handle retryable status codes
+        if (retryStatusCodes.find((*resPtr)->status) != retryStatusCodes.end()) {
+            if (retry == 3 && (*resPtr)->status != 429) {  // Don't show error for rate limiting
+                std::ostringstream err;
+                err << "Max retries reached (HTTP " << (*resPtr)->status << ")"
+                    << "\nEndpoint: " << endpoint
+                    << "\nRequest body: " << body.dump(2)
+                    << "\nResponse body: " << jsonResponse.dump(2);
+                _error_handler->raiseError("Request Failed After Retries", err.str());
+            }
+            continue;
+        }
+
+        // Handle other HTTP errors
+        std::ostringstream err;
+        err << "Request failed (HTTP " << (*resPtr)->status << ")"
+            << "\nEndpoint: " << endpoint
+            << "\nRequest body: " << body.dump(2)
+            << "\nResponse body: " << jsonResponse.dump(2);
+        _error_handler->raiseError("Request Failed", err.str());
+        return std::make_pair(false, resPtr);
     }
 
     // this will not be hit, added to suppress compiler complaint
