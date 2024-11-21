@@ -751,9 +751,9 @@ private:
     std::pair<bool, std::shared_ptr<httplib::Result>>
     get(const std::string &endpoint);
 
-    static void getRangeValues(const BDMSDataID &bdmsDataID, DataStats stats,
+    void getRangeValues(const BDMSDataID &bdmsDataID, DataStats stats,
                                char *buffer, std::string type);
-    static void getConstantValues(const BDMSDataID &bdmsDataID, char *buffer,
+    void getConstantValues(const BDMSDataID &bdmsDataID, char *buffer,
                                   size_t size, std::string type);
     template <typename T>
     static void fillBufferWithSequence(T *buffer, T min_value, T max_value,
@@ -1141,8 +1141,8 @@ BaseBDMSDataManager::getDataArraysAsync(const std::string &sessionID,
                     std::tie(success, res) = get(endpoint);
 
                     if (!success) {
-                        if (resPtr) {
-                            _error_handler->raiseError("Request for getDataAsync failed", "with status code " + std::to_string((*resPtr)->status) + " for session ID " + sessionID + " and data ID " + bdmsDataID);
+                        if (res) {
+                            _error_handler->raiseError("Request for getDataAsync failed", "with status code " + std::to_string((*res)->status) + " for session ID " + sessionID + " and data ID " + bdmsDataID);
                         } else {
                             _error_handler->raiseError("Request for getDataAsync failed", "Reason unknown. Please contact the BDMS team.");
                         }
