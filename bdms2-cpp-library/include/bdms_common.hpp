@@ -983,7 +983,7 @@ void BaseBDMSDataManager::getRangeValues(const BDMSDataID &identifier,
     }
     else
     {
-        _error_handler->raiseError("Unexpected BDMS data type in getRangeValues", type + " for identifier " + identifier + ". Please contact the BDMS team.")
+        _error_handler->raiseError("Unexpected BDMS data type in getRangeValues", type + " for identifier " + identifier + ". Please contact the BDMS team.");
     }
 }
 
@@ -1071,7 +1071,7 @@ void BaseBDMSDataManager::getConstantValues(const BDMSDataID &identifier,
     }
     else
     {
-        _error_handler->raiseError("Unexpected BDMS data type in getConstantValues", type + " for identifier " + identifier + ". Please contact the BDMS team.")
+        _error_handler->raiseError("Unexpected BDMS data type in getConstantValues", type + " for identifier " + identifier + ". Please contact the BDMS team.");
     }
 }
 
