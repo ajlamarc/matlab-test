@@ -808,40 +808,6 @@ httplib::Client *BaseBDMSDataManager::client()
     return _client.get();
 }
 
-std::string httplibErrorToString(httplib::Error error) {
-    switch (error) {
-    case httplib::Error::Success:
-        return "Success";
-    case httplib::Error::Unknown:
-        return "Unknown error";
-    case httplib::Error::Connection:
-        return "Connection error";
-    case httplib::Error::BindIPAddress:
-        return "Bind IP Address error";
-    case httplib::Error::Read:
-        return "Read error";
-    case httplib::Error::Write:
-        return "Write error";
-    case httplib::Error::ExceedRedirectCount:
-        return "Exceeded redirect count";
-    case httplib::Error::Canceled:
-        return "Request canceled";
-    case httplib::Error::SSLConnection:
-        return "SSL connection error";
-    case httplib::Error::SSLLoadingCerts:
-        return "SSL loading certificates error";
-    case httplib::Error::SSLServerVerification:
-        return "SSL server verification error";
-    case httplib::Error::UnsupportedMultipartBoundaryChars:
-        return "Unsupported multipart boundary characters";
-    case httplib::Error::Compression:
-        return "Compression error";
-    case httplib::Error::ConnectionTimeout:
-        return "Connection timeout";
-    default:
-        return "Unknown httplib error";
-    }
-}
 std::pair<bool, std::shared_ptr<httplib::Result>>
 BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTPMethod method)
 {
@@ -874,7 +840,7 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body, HTTP
             if (retry == 3) {
                 std::ostringstream err;
                 err << "Transport layer error"
-                    << "\nError code: " << httplibErrorToString(resPtr ? resPtr->error() : httplib::Error::Unknown)
+                    << "\nError code: " << httplib::to_string(resPtr ? resPtr->error() : httplib::Error::Unknown)
                     << "\nEndpoint: " << endpoint
                     << "\nRequest body: " << body.dump(2);
                 _error_handler->raiseError("HTTP Request Failed", err.str());
