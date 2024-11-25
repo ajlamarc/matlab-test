@@ -6,7 +6,7 @@ public:
     using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
     mxArray *getArray(const SessionID &sessionID, std::vector<BDMSDataID> &dataIDs);
-    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<std::string>> &dataToDownload);
+    mxArray *getArraysBySessionId(const std::vector<std::vector<std::string>> &dataToDownload);
 };
 
 mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<BDMSDataID> &dataIDs)
