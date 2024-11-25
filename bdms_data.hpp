@@ -5,11 +5,11 @@ class BDMSDataManager : public BaseBDMSDataManager
 public:
     using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
-    mxArray *getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs);
-    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload);
+    mxArray *getArray(const SessionID &sessionID, std::vector<BDMSDataID> &dataIDs);
+    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<std::string>> &dataToDownload);
 };
 
-mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs)
+mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<BDMSDataID> &dataIDs)
 {
     auto dataFutures = getDataArraysAsync(sessionID, dataIDs);
     std::vector<GenericVector> chunks(dataFutures.size());
@@ -37,7 +37,7 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::
     return outputBytes;
 }
 
-mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload)
+mxArray *BDMSDataManager::getArraysBySessionId(const std::vector<std::vector<std::string>> &dataToDownload)
 {
     mxArray *output = mxCreateCellMatrix(dataToDownload.size(), 1);
 
@@ -48,8 +48,8 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::ve
     // Trigger getDataArraysAsync for all sessions
     for (const auto &entry : dataToDownload)
     {
-        const SessionID &sessionID = entry.first;
-        const std::vector<BDMSDataID> &dataIDs = entry.second;
+        const SessionID &sessionID = entry[0];  // First element is session ID
+        std::vector<BDMSDataID> dataIDs(entry.begin() + 1, entry.end());  // Rest are data IDs
         allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 

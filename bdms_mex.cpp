@@ -100,45 +100,42 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if (nlhs != 1 || nrhs != 3)
             mexErrMsgTxt("getArraysBySessionId: Unexpected arguments.");
 
-        std::map<SessionID, std::vector<BDMSDataID>> dataToDownload;
+        std::vector<std::vector<std::string>> dataToDownload;
 
         const mxArray *sessionIDsAndDataIDs = prhs[2];
         size_t numSessions = mxGetNumberOfElements(sessionIDsAndDataIDs);
+        dataToDownload.reserve(numSessions);
 
         for (size_t i = 0; i < numSessions; i++)
         {
             mxArray *sessionIDAndDataIDs = mxGetCell(sessionIDsAndDataIDs, i);
-
             size_t numDataIDsIncludingSessionID = mxGetNumberOfElements(sessionIDAndDataIDs);
             size_t numDataIDs = numDataIDsIncludingSessionID - 1;
 
             if (numDataIDs < 1)
                 mexErrMsgTxt("getArraysBySessionId: Each session must have at least one data ID.");
 
+            // Convert cell array to vector structure
+            std::vector<std::string> sessionDataToDownload;
+            sessionDataToDownload.reserve(numDataIDsIncludingSessionID);
+
             // get session ID
             mxArray *sessionID = mxGetCell(sessionIDAndDataIDs, 0);
             char *sessionIDChars = mxArrayToString(sessionID);
-
             std::string sessionIDStr = std::string(sessionIDChars);
             mxFree(sessionIDChars);
+            sessionDataToDownload.emplace_back(sessionIDStr);
 
             // get data IDs
-            char **dataIDs = (char **)mxCalloc(numDataIDs, sizeof(char *));
             for (size_t j = 0; j < numDataIDs; j++)
             {
                 mxArray *dataID = mxGetCell(sessionIDAndDataIDs, j + 1);
                 char *dataIDChars = mxArrayToString(dataID);
-                dataIDs[j] = dataIDChars;
+                std::string dataIDStr = std::string(dataIDChars);
+                mxFree(dataIDChars);
+                sessionDataToDownload.emplace_back(dataIDStr);
             }
-            std::vector<std::string> ids(dataIDs, dataIDs + numDataIDs);
-            for (int i = 0; i < numDataIDs; i++)
-            {
-                mxFree(dataIDs[i]);
-            }
-            mxFree(dataIDs);
-
-            // add to request map
-            dataToDownload.emplace(sessionIDStr, ids);
+            dataToDownload.emplace_back(sessionDataToDownload);
         }
 
         plhs[0] = bdms_instance->getArraysBySessionId(dataToDownload);
