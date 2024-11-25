@@ -124,7 +124,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             char *sessionIDChars = mxArrayToString(sessionID);
             std::string sessionIDStr = std::string(sessionIDChars);
             mxFree(sessionIDChars);
-            sessionDataToDownload.emplace_back(sessionIDStr);
+            sessionDataToDownload.push_back(sessionIDStr);
 
             // get data IDs
             for (size_t j = 0; j < numDataIDs; j++)
@@ -133,9 +133,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 char *dataIDChars = mxArrayToString(dataID);
                 std::string dataIDStr = std::string(dataIDChars);
                 mxFree(dataIDChars);
-                sessionDataToDownload.emplace_back(dataIDStr);
+                sessionDataToDownload.push_back(dataIDStr);
             }
-            dataToDownload.emplace_back(sessionDataToDownload);
+            dataToDownload.push_back(sessionDataToDownload);
         }
 
         plhs[0] = bdms_instance->getArraysBySessionId(dataToDownload);
