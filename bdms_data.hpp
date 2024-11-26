@@ -48,9 +48,9 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::vector<std::vector<std
     // Trigger getDataArraysAsync for all sessions
     for (const auto &entry : dataToDownload)
     {
-        const SessionID sessionID = entry[0];  // First element is session ID
+        const SessionID &sessionID = entry[0];  // First element is session ID
         const std::vector<BDMSDataID> dataIDs(entry.begin() + 1, entry.end());  // Rest are data IDs
-        allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, std::move(dataIDs)));
+        allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 
     // Process the futures

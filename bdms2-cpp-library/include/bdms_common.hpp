@@ -808,7 +808,7 @@ private:
 protected:
     std::vector<std::future<GenericVector>>
     getDataArraysAsync(const std::string sessionID,
-                       const std::vector<std::string> &ids);
+                       const std::vector<std::string> ids);
     const DataStats getStats(const SessionID &sessionID,
                              const BDMSDataID &bdmsDataID);
 
@@ -1152,7 +1152,7 @@ void BaseBDMSDataManager::getConstantValues(const BDMSDataID &identifier,
 It is the responsibility of the caller to reshape resulting chunks. */
 std::vector<std::future<GenericVector>>
 BaseBDMSDataManager::getDataArraysAsync(const std::string sessionID,
-                                        const std::vector<std::string> &ids)
+                                        const std::vector<std::string> ids)
 {
     std::vector<std::future<GenericVector>> futures;
 
