@@ -70,15 +70,23 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::vector<std::vector<std
     {
         log_message("Processing future " + std::to_string(i));
         const SessionID &sessionID = allFutures[i].first;
+        log_message("Got session ID: " + sessionID);
         std::vector<std::future<GenericVector>> &dataFutures = allFutures[i].second;
+        log_message("Got futures vector, size: " + std::to_string(dataFutures.size()));
 
         // set session ID in output structure
+        log_message("Creating cell matrix");
         mxArray *outputForSessionID = mxCreateCellMatrix(dataFutures.size() + 1, 1);
+        log_message("Created cell matrix");
+        log_message("Setting session ID in cell");
         mxSetCell(outputForSessionID, 0, mxCreateString(sessionID.c_str()));
+        log_message("Set session ID in cell");
 
         for (size_t j = 0; j < dataFutures.size(); ++j)
         {
+            log_message("Getting future " + std::to_string(j));
             GenericVector chunk = dataFutures[j].get();
+            log_message("Got future data");
             size_t chunkByteSize = chunk.byteSize();
 
             mwSize dims[2] = {chunkByteSize, 1};
@@ -90,7 +98,9 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::vector<std::vector<std
             mxSetCell(outputForSessionID, j + 1, outputBytes);
         }
 
+        log_message("Setting cell in output");
         mxSetCell(output, i, outputForSessionID);
+        log_message("Set cell in output");
     }
 
     log_message("Finished getArraysBySessionId implementation");
