@@ -1,4 +1,11 @@
 #include "bdms_common.hpp"
+#include <fstream>
+
+void log_message(const std::string& msg) {
+    std::ofstream log_file("bdms_debug.log", std::ios::app);
+    log_file << "[MEX] " << msg << std::endl;
+    log_file.close();
+}
 
 class BDMSDataManager : public BaseBDMSDataManager
 {
@@ -39,23 +46,29 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<BDMSD
 
 mxArray *BDMSDataManager::getArraysBySessionId(const std::vector<std::vector<std::string>> &dataToDownload)
 {
+    log_message("Starting getArraysBySessionId implementation");
     mxArray *output = mxCreateCellMatrix(dataToDownload.size(), 1);
 
     // Create a vector to store futures for all sessions
+    log_message("Creating futures vector");
     std::vector<std::pair<SessionID, std::vector<std::future<GenericVector>>>> allFutures;
     allFutures.reserve(dataToDownload.size());
 
     // Trigger getDataArraysAsync for all sessions
+    log_message("Triggering async calls");
     for (const auto &entry : dataToDownload)
     {
         const SessionID &sessionID = entry[0];  // First element is session ID
+        log_message("Processing session ID: " + sessionID);
         const std::vector<BDMSDataID> dataIDs(entry.begin() + 1, entry.end());  // Rest are data IDs
         allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 
     // Process the futures
+    log_message("Processing futures");
     for (size_t i = 0; i < allFutures.size(); ++i)
     {
+        log_message("Processing future " + std::to_string(i));
         const SessionID &sessionID = allFutures[i].first;
         std::vector<std::future<GenericVector>> &dataFutures = allFutures[i].second;
 
@@ -80,5 +93,6 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::vector<std::vector<std
         mxSetCell(output, i, outputForSessionID);
     }
 
+    log_message("Finished getArraysBySessionId implementation");
     return output;
 }

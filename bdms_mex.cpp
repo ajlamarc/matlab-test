@@ -101,6 +101,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgTxt("getArraysBySessionId: Unexpected arguments.");
 
         std::vector<std::vector<std::string>> dataToDownload;
+        log_message("Processing input arguments");
 
         const mxArray *sessionIDsAndDataIDs = prhs[2];
         size_t numSessions = mxGetNumberOfElements(sessionIDsAndDataIDs);
@@ -138,7 +139,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             dataToDownload.push_back(sessionDataToDownload);
         }
 
+        log_message("Calling bdms_instance->getArraysBySessionId");
         plhs[0] = bdms_instance->getArraysBySessionId(dataToDownload);
+        log_message("Finished getArraysBySessionId");
         return;
     }
 
