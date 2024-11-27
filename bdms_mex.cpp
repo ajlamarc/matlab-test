@@ -101,9 +101,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgTxt("getArraysBySessionId: Unexpected arguments.");
 
         std::map<SessionID, std::vector<BDMSDataID>> dataToDownload;
+        std::vector<SessionID> sessionInsertionOrder;
 
         const mxArray *sessionIDsAndDataIDs = prhs[2];
         size_t numSessions = mxGetNumberOfElements(sessionIDsAndDataIDs);
+        sessionInsertionOrder.reserve(numSessions);
 
         for (size_t i = 0; i < numSessions; i++)
         {
@@ -139,9 +141,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
             // add to request map
             dataToDownload.emplace(sessionIDStr, ids);
+            sessionInsertionOrder.push_back(sessionIDStr);
         }
 
-        plhs[0] = bdms_instance->getArraysBySessionId(dataToDownload);
+        plhs[0] = bdms_instance->getArraysBySessionId(dataToDownload, sessionInsertionOrder);
         return;
     }
 

@@ -6,7 +6,7 @@ public:
     using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
     mxArray *getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs);
-    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload);
+    mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload, const std::vector<SessionID> &sessionInsertionOrder);
 };
 
 mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs)
@@ -37,27 +37,25 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::
     return outputBytes;
 }
 
-mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload)
+mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload, const std::vector<SessionID> &sessionInsertionOrder)
 {
-    mxArray *output = mxCreateCellMatrix(dataToDownload.size(), 1);
+    mxArray *output = mxCreateCellMatrix(sessionInsertionOrder.size(), 1);
 
-    // Create a vector to store futures for all sessions
-    std::vector<std::pair<SessionID, std::vector<std::future<GenericVector>>>> allFutures;
-    allFutures.reserve(dataToDownload.size());
+    // Store futures for all sessions
+    std::map<SessionID, std::vector<std::future<GenericVector>>> allFutures;
 
     // Trigger getDataArraysAsync for all sessions
-    for (const auto &entry : dataToDownload)
+    for (const SessionID &sessionID : sessionInsertionOrder)
     {
-        const SessionID &sessionID = entry.first;
-        const std::vector<BDMSDataID> &dataIDs = entry.second;
-        allFutures.emplace_back(sessionID, getDataArraysAsync(sessionID, dataIDs));
+        const std::vector<BDMSDataID> &dataIDs = dataToDownload[sessionID];
+        allFutures.emplace(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 
     // Process the futures
-    for (size_t i = 0; i < allFutures.size(); ++i)
+    for (int i = 0; i < sessionInsertionOrder.size(); ++i)
     {
-        const SessionID &sessionID = allFutures[i].first;
-        std::vector<std::future<GenericVector>> &dataFutures = allFutures[i].second;
+        const SessionID &sessionID = sessionInsertionOrder[i];
+        const std::vector<std::future<GenericVector>> &dataFutures = allFutures[sessionID];
 
         // set session ID in output structure
         mxArray *outputForSessionID = mxCreateCellMatrix(dataFutures.size() + 1, 1);
