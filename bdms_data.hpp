@@ -37,6 +37,8 @@ mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::
     return outputBytes;
 }
 
+// dummy comment
+
 mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload)
 {
     mxArray *output = mxCreateCellMatrix(dataToDownload.size(), 1);
