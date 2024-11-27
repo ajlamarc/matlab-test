@@ -47,7 +47,7 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::ve
     // Trigger getDataArraysAsync for all sessions
     for (const SessionID &sessionID : sessionInsertionOrder)
     {
-        const std::vector<BDMSDataID> &dataIDs = dataToDownload[sessionID];
+        std::vector<BDMSDataID> &dataIDs = dataToDownload[sessionID];
         allFutures.emplace(sessionID, getDataArraysAsync(sessionID, dataIDs));
     }
 
@@ -55,7 +55,7 @@ mxArray *BDMSDataManager::getArraysBySessionId(const std::map<SessionID, std::ve
     for (int i = 0; i < sessionInsertionOrder.size(); ++i)
     {
         const SessionID &sessionID = sessionInsertionOrder[i];
-        const std::vector<std::future<GenericVector>> &dataFutures = allFutures[sessionID];
+        std::vector<std::future<GenericVector>> &dataFutures = allFutures[sessionID];
 
         // set session ID in output structure
         mxArray *outputForSessionID = mxCreateCellMatrix(dataFutures.size() + 1, 1);
