@@ -832,9 +832,6 @@ public:
     // Delete copy operations
     BaseBDMSDataManager(const BaseBDMSDataManager&) = delete;
     BaseBDMSDataManager& operator=(const BaseBDMSDataManager&) = delete;
-    // Allow move operations
-    BaseBDMSDataManager(BaseBDMSDataManager&&) = default;
-    BaseBDMSDataManager& operator=(BaseBDMSDataManager&&) = default;
 };
 
 httplib::Client *BaseBDMSDataManager::client()

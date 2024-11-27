@@ -5,11 +5,11 @@ class BDMSDataManager : public BaseBDMSDataManager
 public:
     using BaseBDMSDataManager::BaseBDMSDataManager; // Inherit constructors
 
-    mxArray *getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs);
+    mxArray *getArray(const SessionID &sessionID, std::vector<BDMSDataID> &dataIDs);
     mxArray *getArraysBySessionId(const std::map<SessionID, std::vector<BDMSDataID>> &dataToDownload, const std::vector<SessionID> &sessionInsertionOrder);
 };
 
-mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<std::string> &dataIDs)
+mxArray *BDMSDataManager::getArray(const SessionID &sessionID, std::vector<BDMSDataID> &dataIDs)
 {
     auto dataFutures = getDataArraysAsync(sessionID, dataIDs);
     std::vector<GenericVector> chunks(dataFutures.size());
