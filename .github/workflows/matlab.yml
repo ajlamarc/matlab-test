@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: windows-latest
-          #   version: R2024a
+          - os: windows-latest
+            version: R2024a
           - os: macos-13
             version: R2024a
     steps:
