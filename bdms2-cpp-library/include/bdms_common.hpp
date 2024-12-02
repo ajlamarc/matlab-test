@@ -829,12 +829,6 @@ public:
         : BaseBDMSDataManager(provided, httplib::detail::make_unique<DefaultBDMSExceptionHandler>()) {}
     BaseBDMSDataManager() 
         : BaseBDMSDataManager(BDMSProvidedConfig(), httplib::detail::make_unique<DefaultBDMSExceptionHandler>()) {}
-    // Delete copy operations
-    BaseBDMSDataManager(const BaseBDMSDataManager&) = delete;
-    BaseBDMSDataManager& operator=(const BaseBDMSDataManager&) = delete;
-    // Allow move operations
-    BaseBDMSDataManager(BaseBDMSDataManager&&) = default;
-    BaseBDMSDataManager& operator=(BaseBDMSDataManager&&) = default;
 };
 
 httplib::Client *BaseBDMSDataManager::client()
