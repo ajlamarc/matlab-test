@@ -48,7 +48,7 @@ source_files = {fullfile(script_dir, 'bdms_mex.cpp')};
 
 % Compile the MEX file
 if ~islinux
-    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:}, '-largeArrayDims');
+    mex('-R2017b', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:});
 else
     mex('GCC="/usr/bin/gcc-4.9"', include_flags{:}, '-output', 'bdms_mex', library_files{:}, source_files{:}, '-largeArrayDims');
 end
