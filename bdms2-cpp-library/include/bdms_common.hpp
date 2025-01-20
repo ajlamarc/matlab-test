@@ -24,6 +24,7 @@ using json = nlohmann::json;
 #include <ctime>
 #include <mutex>
 #include <type_traits>
+#include <cstring>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFnjCCA4agAwIBAgIQIyrcRJGv6EQmZ1Iq+we5yDANBgkqhkiG9w0BAQwFADBp
@@ -189,7 +190,7 @@ struct BDMSResolvedConfig {
 };
 
 // Helper functions not tied to a specific class
-bool create_directories(const std::string &path) {
+void create_directories(const std::string &path) {
     std::string current_path;
     std::string::size_type pos = 0;
     std::string::size_type prev_pos = 0;
@@ -204,7 +205,8 @@ bool create_directories(const std::string &path) {
 
         if (current_path.length() > 0) {
             if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST) {
-                return false;
+                throw std::runtime_error("Failed to create directory '" + current_path + 
+                    "': " + std::string(strerror(errno)));
             }
         }
 
@@ -219,11 +221,10 @@ bool create_directories(const std::string &path) {
         }
         current_path += path.substr(prev_pos);
         if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST) {
-            return false;
+            throw std::runtime_error("Failed to create directory '" + current_path + 
+                "': " + std::string(strerror(errno)));
         }
     }
-
-    return true;
 }
 
 // see
@@ -683,9 +684,7 @@ std::string BDMSConfig::_getBDMSConfigDir() {
    filesystem depending on how this client is packaged. */
 std::string
 BDMSConfig::_getDefaultCertificatePath(const std::string &configDir) {
-    if (!create_directories(configDir)) {
-        throw std::runtime_error("Failed to create bdms config directory");
-    }
+    create_directories(configDir);
 
     std::string certPath = configDir + PATH_SEPARATOR + "BlueOriginRootCA.crt";
 
