@@ -190,41 +190,39 @@ struct BDMSResolvedConfig {
 };
 
 // Helper functions not tied to a specific class
-void create_directories(const std::string &path) {
+bool create_directories(const std::string& path) {
+    if (path.empty()) {
+        return false;
+    }
+
+    size_t pos = 0;
     std::string current_path;
-    std::string::size_type pos = 0;
-    std::string::size_type prev_pos = 0;
 
-    while ((pos = path.find_first_of(PATH_SEPARATOR, pos)) !=
-           std::string::npos) {
-        std::string dir = path.substr(prev_pos, pos - prev_pos);
+    // Handle absolute paths
+    if (path[0] == PATH_SEPARATOR[0]) {
+        current_path = PATH_SEPARATOR;
+        pos = 1;
+    }
+
+    while ((pos = path.find(PATH_SEPARATOR, pos)) != std::string::npos) {
+        current_path = path.substr(0, pos);
         if (!current_path.empty()) {
-            current_path += PATH_SEPARATOR;
-        }
-        current_path += dir;
-
-        if (current_path.length() > 0) {
-            if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST) {
-                throw std::runtime_error("Failed to create directory '" + current_path + 
-                    "': " + std::string(strerror(errno)));
+            if (MKDIR(current_path.c_str()) != 0) {
+                // Ignore already existing directory error
+                if (errno != EEXIST) {
+                    return false;
+                }
             }
         }
-
-        pos++; // move past the separator
-        prev_pos = pos;
+        pos++;
     }
 
-    // Handle the last part of the path
-    if (prev_pos < path.length()) {
-        if (!current_path.empty()) {
-            current_path += PATH_SEPARATOR;
-        }
-        current_path += path.substr(prev_pos);
-        if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST) {
-            throw std::runtime_error("Failed to create directory '" + current_path + 
-                "': " + std::string(strerror(errno)));
-        }
+    // Create the final directory
+    if (MKDIR(path.c_str()) != 0 && errno != EEXIST) {
+        return false;
     }
+
+    return true;
 }
 
 // see
@@ -673,26 +671,8 @@ std::string BDMSConfig::_getBDMSEnv(const std::string &key,
 }
 
 std::string BDMSConfig::_getBDMSConfigDir() {
-    std::string defaultConfigDir;
-    const char* home = std::getenv(HOME_DIR.c_str());
-    if (!home) {
-        throw std::runtime_error("Could not get home directory from environment variable " + HOME_DIR);
-    }
-
-    std::string homePath(home);
-    #ifndef _WIN32
-    // ensure on Unix that there is a leading slash
-    if (homePath[0] != '/') {
-        defaultConfigDir = "/" + homePath;
-    } else {
-        defaultConfigDir = homePath;
-    }
-    #else
-    defaultConfigDir = homePath;
-    #endif
-
-    defaultConfigDir += PATH_SEPARATOR + ".bdms2";
-
+    std::string defaultConfigDir =
+        std::string(std::getenv(HOME_DIR.c_str())) + PATH_SEPARATOR + ".bdms2";
     return _getBDMSEnv("CONFIG_DIRECTORY", defaultConfigDir);
 }
 
