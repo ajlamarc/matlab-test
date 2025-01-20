@@ -72,7 +72,7 @@ std::string PATH_SEPARATOR = "\\";
 
 std::string HOME_DIR = "HOME";
 std::string PATH_SEPARATOR = "/";
-#define MKDIR(dir) mkdir(dir, 0511)
+#define MKDIR(dir) mkdir(dir, 0755)
 #endif
 
 enum class BDMSDataType {
