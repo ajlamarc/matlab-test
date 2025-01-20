@@ -673,8 +673,26 @@ std::string BDMSConfig::_getBDMSEnv(const std::string &key,
 }
 
 std::string BDMSConfig::_getBDMSConfigDir() {
-    std::string defaultConfigDir =
-        std::string(std::getenv(HOME_DIR.c_str())) + PATH_SEPARATOR + ".bdms2";
+    std::string defaultConfigDir;
+    const char* home = std::getenv(HOME_DIR.c_str());
+    if (!home) {
+        throw std::runtime_error("Could not get home directory from environment variable " + HOME_DIR);
+    }
+
+    std::string homePath(home);
+    #ifndef _WIN32
+    // ensure on Unix that there is a leading slash
+    if (homePath[0] != '/') {
+        defaultConfigDir = "/" + homePath;
+    } else {
+        defaultConfigDir = homePath;
+    }
+    #else
+    defaultConfigDir = homePath;
+    #endif
+
+    defaultConfigDir += PATH_SEPARATOR + ".bdms2";
+
     return _getBDMSEnv("CONFIG_DIRECTORY", defaultConfigDir);
 }
 
