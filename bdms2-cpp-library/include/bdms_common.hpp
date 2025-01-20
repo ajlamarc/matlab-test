@@ -188,39 +188,6 @@ struct BDMSResolvedConfig {
     std::string baseUrl, apiKey, certificatePath, userAgent;
 };
 
-// Helper functions not tied to a specific class
-bool create_directories(const std::string& path) {
-    if (path.empty()) {
-        return false;
-    }
-
-    size_t pos = 0;
-    std::string current_path;
-
-    // Handle absolute paths
-    if (path[0] == PATH_SEPARATOR[0]) {
-        current_path = PATH_SEPARATOR;
-        pos = 1;
-    }
-
-    while ((pos = path.find(PATH_SEPARATOR, pos)) != std::string::npos) {
-        current_path = path.substr(0, pos);
-        if (!current_path.empty()) {
-            if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST) {
-                return false;
-            }
-        }
-        pos++; // move past the separator
-    }
-
-    // Create the final directory
-    if (MKDIR(path.c_str()) != 0 && errno != EEXIST) {
-        return false;
-    }
-
-    return true;
-}
-
 // see
 // https://raymii.org/s/tutorials/Cpp_std_async_with_a_concurrency_limit.html
 class Semafoor {
@@ -576,7 +543,7 @@ class BDMSConfig {
     static std::string _getBDMSEnv(const std::string &key,
                                    const std::string &defaultValue = "");
     static std::string _getBDMSConfigDir();
-    static std::string _getDefaultCertificatePath(const std::string &configDir);
+    static void _ensureCertificateExists(const std::string &certPath);
     static BDMSProfileConfig _getProfileHostTokenProtocolCertificateValues(
         const std::string &providedProfile);
 
@@ -672,17 +639,10 @@ std::string BDMSConfig::_getBDMSConfigDir() {
     return _getBDMSEnv("CONFIG_DIRECTORY", defaultConfigDir);
 }
 
-/* If the cert cannot be found in the expected location (within the user's bdms
-   config dir), it will be copied there from the BlueOriginRootCA.py certificate
-   data. Copying is necessary because the bundled cert might not exist on the
-   filesystem depending on how this client is packaged. */
-std::string
-BDMSConfig::_getDefaultCertificatePath(const std::string &configDir) {
-    if (!create_directories(configDir)) {
-        throw std::runtime_error("Failed to create bdms config directory");
-    }
-
-    std::string certPath = configDir + PATH_SEPARATOR + "BlueOriginRootCA.crt";
+/* If the cert cannot be found in the expected location,
+   it will be copied there from the BlueOriginRootCA.py certificate
+   data. */
+void BDMSConfig::_ensureCertificateExists(const std::string &certPath) {
 
     // Check if file exists
     struct stat buffer;
@@ -699,8 +659,6 @@ BDMSConfig::_getDefaultCertificatePath(const std::string &configDir) {
                 "Failed to create BlueOriginRootCA.crt file");
         }
     }
-
-    return certPath;
 }
 
 /* Initialize a BaseBDMSDataManager object with the provided configuration.
@@ -732,8 +690,6 @@ BDMSProfileConfig BDMSConfig::_getProfileHostTokenProtocolCertificateValues(
     std::string configDir = _getBDMSConfigDir();
     std::string configPath = configDir + PATH_SEPARATOR + "config";
     std::string credentialsPath = configDir + PATH_SEPARATOR + "credentials";
-
-    std::string certificatePath = _getDefaultCertificatePath(configDir);
 
     profile.host =
         _readBDMSKeyFromFile(configPath, profileName, "bdms_api_host");
@@ -783,6 +739,8 @@ BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(
     resolved.userAgent =
         !provided.userAgent.empty() ? provided.userAgent : defaultUserAgent;
     resolved.baseUrl = protocol + "://" + host;
+
+    _ensureCertificateExists(resolved.certificatePath);
 
     return resolved;
 }
