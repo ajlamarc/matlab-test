@@ -24,7 +24,6 @@ using json = nlohmann::json;
 #include <ctime>
 #include <mutex>
 #include <type_traits>
-#include <cstring>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFnjCCA4agAwIBAgIQIyrcRJGv6EQmZ1Iq+we5yDANBgkqhkiG9w0BAQwFADBp
@@ -207,14 +206,11 @@ bool create_directories(const std::string& path) {
     while ((pos = path.find(PATH_SEPARATOR, pos)) != std::string::npos) {
         current_path = path.substr(0, pos);
         if (!current_path.empty()) {
-            if (MKDIR(current_path.c_str()) != 0) {
-                // Ignore already existing directory error
-                if (errno != EEXIST) {
-                    return false;
-                }
+            if (MKDIR(current_path.c_str()) != 0 && errno != EEXIST) {
+                return false;
             }
         }
-        pos++;
+        pos++; // move past the separator
     }
 
     // Create the final directory
@@ -682,7 +678,9 @@ std::string BDMSConfig::_getBDMSConfigDir() {
    filesystem depending on how this client is packaged. */
 std::string
 BDMSConfig::_getDefaultCertificatePath(const std::string &configDir) {
-    create_directories(configDir);
+    if (!create_directories(configDir)) {
+        throw std::runtime_error("Failed to create bdms config directory");
+    }
 
     std::string certPath = configDir + PATH_SEPARATOR + "BlueOriginRootCA.crt";
 
