@@ -24,6 +24,7 @@ using json = nlohmann::json;
 #include <ctime>
 #include <mutex>
 #include <type_traits>
+#include <cstdlib>
 
 const char *CERT_BYTES = R"(-----BEGIN CERTIFICATE-----
 MIIFnjCCA4agAwIBAgIQIyrcRJGv6EQmZ1Iq+we5yDANBgkqhkiG9w0BAQwFADBp
@@ -545,7 +546,7 @@ class BDMSConfig {
     static std::string _getBDMSConfigDir();
     static void _ensureCertificateExists(const std::string &certPath);
     static BDMSProfileConfig _getProfileHostTokenProtocolCertificateValues(
-        const std::string &providedProfile);
+        const std::string &providedProfile, const std::string &configDir);
 
   public:
     static BDMSResolvedConfig
@@ -677,7 +678,7 @@ identify the client making requests to BDMS and can be helpful for collaborative
 debugging. We recommend including the client name and version, ex.
 "igs-cpp-bdms2/1.0.0". */
 BDMSProfileConfig BDMSConfig::_getProfileHostTokenProtocolCertificateValues(
-    const std::string &providedProfile) {
+    const std::string &providedProfile, const std::string &configDir) {
     BDMSProfileConfig profile;
     std::string profileName;
 
@@ -687,7 +688,6 @@ BDMSProfileConfig BDMSConfig::_getProfileHostTokenProtocolCertificateValues(
         profileName = _getBDMSEnv("API_PROFILE", "default");
     }
 
-    std::string configDir = _getBDMSConfigDir();
     std::string configPath = configDir + PATH_SEPARATOR + "config";
     std::string credentialsPath = configDir + PATH_SEPARATOR + "credentials";
 
@@ -706,10 +706,11 @@ BDMSProfileConfig BDMSConfig::_getProfileHostTokenProtocolCertificateValues(
 BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(
     BDMSProvidedConfig provided) {
     BDMSResolvedConfig resolved;
+    std::string configDir = _getBDMSConfigDir();
 
     BDMSProfileConfig profile =
         BDMSConfig::_getProfileHostTokenProtocolCertificateValues(
-            provided.profile);
+            provided.profile, configDir);
 
     std::string environHost = BDMSConfig::_getBDMSEnv("API_HOST");
     std::string environProtocol = BDMSConfig::_getBDMSEnv("API_PROTOCOL");
@@ -720,7 +721,7 @@ BDMSResolvedConfig BDMSConfig::getHostTokenProtocolCertificateAgentValues(
     std::string defaultHost = "bdms2.blueorigin.com";
     std::string defaultProtocol = "https";
     std::string defaultApiKey = "";
-    std::string defaultCertificatePath = "";
+    std::string defaultCertificatePath = configDir + PATH_SEPARATOR + "BlueOriginRootCA.crt";
     std::string defaultUserAgent = "cpp-bdms2/unknown";
 
     // evaluate configuration values in precedence order described in docstring
@@ -819,6 +820,10 @@ httplib::Client *BaseBDMSDataManager::client() {
     return _client.get();
 }
 
+/* NOTE: this also retries "unsafe" request types automatically (e.g. POST).
+since the client doesn't support create / update / delete requests currently.
+
+If it does in the future, add a "retry_unsafe_methods" argument. */
 std::pair<bool, std::shared_ptr<httplib::Result>>
 BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
                              HTTPMethod method) {
@@ -829,12 +834,10 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
 
     auto cl = client();
     std::set<int> retryStatusCodes = {429, 500, 502, 503, 504};
+    const double backoffFactor = 3.0;
+    const double backoffJitter = 6.0;
 
     for (int retry = 0; retry < 4; ++retry) {
-        if (retry > 0) {
-            std::this_thread::sleep_for(std::chrono::seconds(retry - 1));
-        }
-
         // Make the request
         std::shared_ptr<httplib::Result> resPtr;
         {
@@ -865,6 +868,10 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
                 errorHandler->raiseError("HTTP Request Failed", err.str());
                 return std::make_pair(false, resPtr);
             }
+
+            double waitTime = std::pow(backoffFactor, retry) + 
+                            (static_cast<double>(rand()) / RAND_MAX) * backoffJitter;
+            std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
             continue;
         }
 
@@ -888,17 +895,29 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
         const json jsonResponse = json::parse((*resPtr)->body);
 
         // Handle retryable status codes
-        if (retryStatusCodes.find((*resPtr)->status) !=
-            retryStatusCodes.end()) {
-            if (retry == 3 && (*resPtr)->status !=
-                                  429) { // Don't show error for rate limiting
+        if (retryStatusCodes.find((*resPtr)->status) != retryStatusCodes.end()) {
+            if (retry < 3) {
+                // Check for Retry-After header
+                double waitTime = 0;
+                std::string retryAfter = std::string((*resPtr)->get_header_value("retry-after"));
+                
+                if (!retryAfter.empty()) {
+                    waitTime = std::stod(retryAfter);
+                } else {
+                    // Use exponential backoff with jitter
+                    waitTime = std::pow(backoffFactor, retry) + 
+                             (static_cast<double>(rand()) / RAND_MAX) * backoffJitter;
+                }
+                
+                std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
+            } else if ((*resPtr)->status != 429) { // Don't show error for rate limiting
                 std::ostringstream err;
                 err << "Max retries reached (HTTP " << (*resPtr)->status << ")"
                     << "\nEndpoint: " << endpoint
                     << "\nRequest body: " << body.dump(2)
                     << "\nResponse body: " << jsonResponse.dump(2);
                 errorHandler->raiseError("Request Failed After Retries",
-                                         err.str());
+                                       err.str());
             }
             continue;
         }
