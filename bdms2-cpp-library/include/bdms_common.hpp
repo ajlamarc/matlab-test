@@ -905,7 +905,7 @@ BaseBDMSDataManager::request(const std::string &endpoint, const json &body,
                     waitTime = std::stod(retryAfter);
                 } else {
                     // Use exponential backoff with jitter
-                    waitTime = std::pow(backoffFactor, retry) + 
+                    waitTime = std::pow(backoffFactor, retry + 1) + 
                              (static_cast<double>(rand()) / RAND_MAX) * backoffJitter;
                 }
                 
